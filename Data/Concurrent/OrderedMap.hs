@@ -1,12 +1,21 @@
 -- References:
 -- * Herlihy, Shavit: The Art of Multiprocessor Programming
 
-module Data.Concurrent.OrderedMap where
+module Data.Concurrent.OrderedMap (
+  OrderedMap,
+  empty,
+  fromList,
+  toList,
+  insert,
+  contains,
+  delete
+  ) where
 
 
 -- TODO: Try unboxed types
 -- TODO: Potential false-sharing in nodes' arrays
--- TODO: Switching to lists would free the user from having to specify maximal capacity
+-- TODO: Switching to lists would free the user from having to specify maximal
+--       capacity and potentially decrease false sharing
 
 
 import Data.List (replicate, sortBy)

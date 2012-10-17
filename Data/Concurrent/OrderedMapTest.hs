@@ -4,32 +4,75 @@ import Test.QuickCheck.Monadic
 import Data.Concurrent.OrderedMap
 
 
+-- TODO: Test cases involving forkIO
+
+
 type ElementType = Int
 
 
-prop_sorts :: Property
-prop_sorts = monadicIO $ do
-  contents <- pick (arbitrary :: Gen [ElementType])
-  list <- run (fromList 1 contents >>= toList)
-  assert $ list == Data.List.nub contents
+genElem :: Gen ElementType
+genElem = choose (-50, 150)
 
-{-
+
+genLevel :: Gen Int
+genLevel = choose (1, 10)
+
+
+uniq :: Ord a => [a] -> [a]
+uniq = map head . Data.List.group . Data.List.sort
+
+
+prop_sortsElimsDups :: Property
+prop_sortsElimsDups = monadicIO $ do
+  contents <- pick $ listOf genElem
+  level <- pick genLevel
+  result <- run $ do
+    omap <- fromList level contents
+    toList omap
+  assert $ result == uniq contents
+
+
 prop_inserts :: Property
 prop_inserts = monadicIO $ do
-  contents <- pick (arbitrary :: Gen [ElementType])
-  element <- pick (arbitrary :: Gen ElementType)
-  let sorted = sort contents
-  list <- run $ do
-    orderedMap <- fromList 1 contents
-    inserted <- insert element orderedMap
-    toList orderedMap
-    return (inserted, 
-  assert $ list == Data.List.insert 
--}
+  contents <- pick $ listOf genElem
+  element <- pick genElem
+  level <- pick genLevel
+  (result, inserted) <- run $ do
+    omap <- fromList level contents
+    inserted <- insert element omap
+    result <- toList omap
+    return (result, inserted)
+  assert $ result == uniq (element : contents)
+  assert $ inserted /= elem element contents
 
--- prop_deletes
--- prop_finds
+
+prop_contains :: Property
+prop_contains = monadicIO $ do
+  contents <- pick $ listOf genElem
+  element <- pick genElem
+  level <- pick genLevel
+  found <- run $ do
+    omap <- fromList level contents
+    contains element omap
+  assert $ found == elem element contents
+
+
+prop_deletes :: Property
+prop_deletes = monadicIO $ do
+  contents <- pick $ listOf genElem
+  element <- pick genElem
+  level <- pick genLevel
+  (result, deleted) <- run $ do
+    omap <- fromList level contents
+    deleted <- delete element omap
+    result <- toList omap
+    return (result, deleted)
+  assert $ result == (Data.List.delete element $ uniq contents)
+  assert $ deleted == elem element contents
 
 
 main = do
-  quickCheck prop_sorts
+  quickCheck prop_sortsElimsDups
+  --quickCheck prop_inserts
+  --quickCheck prop_contains
+  --quickCheck prop_deletes
