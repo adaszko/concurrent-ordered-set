@@ -11,7 +11,7 @@ type ElementType = Int
 
 
 genElem :: Gen ElementType
-genElem = choose (-50, 150)
+genElem = choose (-100, 100)
 
 
 genLevel :: Gen Int
@@ -20,6 +20,15 @@ genLevel = choose (1, 10)
 
 uniq :: Ord a => [a] -> [a]
 uniq = map head . Data.List.group . Data.List.sort
+
+
+prop_empty :: Property
+prop_empty = monadicIO $ do
+  level <- pick genLevel
+  result <- run $ do
+    omap <- empty level
+    toList omap
+  assert $ null result
 
 
 prop_sortsElimsDups :: Property
@@ -72,7 +81,8 @@ prop_deletes = monadicIO $ do
 
 
 main = do
-  quickCheck prop_sortsElimsDups
-  --quickCheck prop_inserts
+  --quickCheck prop_empty
+  verboseCheck prop_inserts
+  --verboseCheck prop_sortsElimsDups
   --quickCheck prop_contains
   --quickCheck prop_deletes
