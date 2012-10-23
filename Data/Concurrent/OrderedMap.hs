@@ -140,12 +140,15 @@ find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
                     if success
                       then go level currMarkableRefs result
                       else find elem head
-            else do writeArray currMRefs level currMarkableRef
-                    succ <- readIORef succRef
-                    writeArray succs level succ
-                    if val > elem
-                      then go (level - 1) succMarkableRefs result
-                      else go level succMarkableRefs result
+            else if val > elem
+                 then do writeArray currMRefs level currMarkableRef
+                         succ <- readIORef succRef
+                         if level > 1
+                           then do writeArray succs level succ
+                                   go (level - 1) succMarkableRefs result
+                           else do writeArray succs level curr
+                                   return result
+                 else go level succMarkableRefs result
 
 
 flipCoin :: IO Bool
@@ -172,6 +175,7 @@ insert elem head @ Head { maxLevel = maxLevel } = do
     Node { value = val } -> do
       -- INVARIANT curr contains smallest val in list such that elem <= val
       print "jestem"
+      print $ "foo: " ++ show succs
       if val == elem
         then return False
         else updateBottomLevel currMarkableRef currRef (currMRefs, succs)

@@ -31,6 +31,58 @@ prop_empty = monadicIO $ do
   assert $ null result
 
 
+prop_trivial_one_level_insert_0_1 :: Property
+prop_trivial_one_level_insert_0_1 = monadicIO $ do
+  let level = 1
+  result <- run $ do
+    omap <- empty level
+    insert 0 omap
+    insert 1 omap
+    toList omap
+  assert $ result == [0, 1]
+  
+  
+prop_trivial_one_level_insert_1_0 :: Property
+prop_trivial_one_level_insert_1_0 = monadicIO $ do
+  let level = 1
+  result <- run $ do
+    omap <- empty level
+    insert 1 omap
+    insert 0 omap
+    toList omap
+  assert $ result == [0, 1]
+
+
+prop_trivial_two_level_insert_0_1 :: Property
+prop_trivial_two_level_insert_0_1 = monadicIO $ do
+  result <- run $ do
+    omap <- empty 2
+    insert 0 omap
+    insert 1 omap
+    toList omap
+  assert $ result == [0, 1]
+
+
+prop_trivial_two_level_insert_1_0 :: Property
+prop_trivial_two_level_insert_1_0 = monadicIO $ do
+  result <- run $ do
+    omap <- empty 2
+    insert 1 omap
+    insert 0 omap
+    toList omap
+  assert $ result == [0, 1]
+
+
+prop_trivial_one_level_insert_delete_0 :: Property
+prop_trivial_one_level_insert_delete_0 = monadicIO $ do
+  result <- run $ do
+    omap <- empty 0
+    insert 0 omap
+    delete 0 omap
+    toList omap
+  assert $ null result
+
+
 prop_sortsElimsDups :: Property
 prop_sortsElimsDups = monadicIO $ do
   contents <- pick $ listOf genElem
@@ -81,8 +133,12 @@ prop_deletes = monadicIO $ do
 
 
 main = do
+  quickCheck prop_trivial_one_level_insert_0_1
+  quickCheck prop_trivial_one_level_insert_1_0
+  quickCheck prop_trivial_two_level_insert_0_1
+  quickCheck prop_trivial_two_level_insert_1_0
   --quickCheck prop_empty
-  verboseCheck prop_inserts
+  --verboseCheck prop_inserts
   --verboseCheck prop_sortsElimsDups
   --quickCheck prop_contains
   --quickCheck prop_deletes
