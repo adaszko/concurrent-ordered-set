@@ -105,6 +105,15 @@ toList Head { next = firstMarkableRefs } = go firstMarkableRefs
           return $ val : rest
 
 
+{- Returns:
+
+1) elem found: (markableRef to node containing elem, successor of node
+containing elem)
+
+2) elem not found: (markableRef to node containing smallest value greater than
+elem or Tail, node from first element of this pair)
+
+-}
 find :: (Show a, Ord a) => a -> OrderedMap a -> IO (NextArray a, NodeArray a)
 find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
   currMRefs <- newArray_ (bottomLevel, maxLevel) :: IO (NextArray a)
@@ -116,7 +125,7 @@ find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
       currMarkableRef <- readArray currMarkableRefs level
       currRef <- readMarkableRef currMarkableRef
       curr <- readIORef currRef
-      print curr
+      print $ "curr: " ++ show curr
       case curr of
         Tail -> do
           writeArray currMRefs level currMarkableRef
@@ -134,9 +143,9 @@ find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
             else do writeArray currMRefs level currMarkableRef
                     succ <- readIORef succRef
                     writeArray succs level succ
-                    if val < elem
+                    if val > elem
                       then go (level - 1) succMarkableRefs result
-                      else return result
+                      else go level succMarkableRefs result
 
 
 flipCoin :: IO Bool
@@ -161,6 +170,7 @@ insert elem head @ Head { maxLevel = maxLevel } = do
       print "tail"
       updateBottomLevel currMarkableRef currRef (currMRefs, succs)
     Node { value = val } -> do
+      -- INVARIANT curr contains smallest val in list such that elem <= val
       print "jestem"
       if val == elem
         then return False
