@@ -264,7 +264,6 @@ contains elem Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
     go 0 _ = return False
     go level currMarkableRefs = do
       currMarkableRef <- readArray currMarkableRefs level
-      marked <- isMarked currMarkableRef
       currRef <- readMarkableRef currMarkableRef
       curr <- readIORef currRef
       case curr of
@@ -273,8 +272,7 @@ contains elem Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
           marked <- isMarked currMarkableRef
           if marked
             then go level succMarkableRefs
-            else if val < elem
-                 then go level succMarkableRefs
-                 else if val == elem
-                      then return True
-                      else go (level - 1) succMarkableRefs
+            else case val `compare` elem of
+                   GT -> go (level - 1) currMarkableRefs
+                   EQ -> return True
+                   LT -> go level succMarkableRefs
