@@ -139,15 +139,27 @@ find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
                     if success
                       then go level currMarkableRefs result
                       else find elem head
-            else if val > elem
-                 then do writeArray currMRefs level currMarkableRef
-                         if level > 1
-                           then do succ <- readIORef succRef
-                                   writeArray succs level succ
-                                   go (level - 1) currMarkableRefs result
-                           else do writeArray succs level curr
-                                   return result
-                 else go level succMarkableRefs result
+            else case val `compare` elem of
+                   GT -> do writeArray currMRefs level currMarkableRef
+                            if level > 1
+                              then do succ <- readIORef succRef
+                                      writeArray succs level succ
+                                      go (level - 1) currMarkableRefs result
+                              else do writeArray succs level curr
+                                      return result
+
+                   -- No need to update either predecessor or successor at the
+                   -- rightward step because it will be overwritten in the
+                   -- coming (downward) step
+                   LT -> go level succMarkableRefs result
+
+                   -- Even when the node with requested element is found, we
+                   -- proceed to lower levels in order to fill up arrays of
+                   -- predecessors and successors
+                   EQ -> do writeArray currMRefs level currMarkableRef
+                            succ <- readIORef succRef
+                            writeArray succs level succ
+                            go (level - 1) currMarkableRefs result
 
 
 flipCoin :: IO Bool
