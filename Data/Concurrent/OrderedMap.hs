@@ -125,7 +125,6 @@ find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
       currMarkableRef <- readArray currMarkableRefs level
       currRef <- readMarkableRef currMarkableRef
       curr <- readIORef currRef
-      print $ "curr: " ++ show curr
       case curr of
         Tail -> do
           writeArray currMRefs level currMarkableRef
@@ -142,10 +141,10 @@ find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
                       else find elem head
             else if val > elem
                  then do writeArray currMRefs level currMarkableRef
-                         succ <- readIORef succRef
                          if level > 1
-                           then do writeArray succs level succ
-                                   go (level - 1) succMarkableRefs result
+                           then do succ <- readIORef succRef
+                                   writeArray succs level succ
+                                   go (level - 1) currMarkableRefs result
                            else do writeArray succs level curr
                                    return result
                  else go level succMarkableRefs result
@@ -170,12 +169,9 @@ insert elem head @ Head { maxLevel = maxLevel } = do
   curr <- readIORef currRef
   case curr of
     Tail -> do
-      print "tail"
       updateBottomLevel currMarkableRef currRef (currMRefs, succs)
     Node { value = val } -> do
       -- INVARIANT curr contains smallest val in list such that elem <= val
-      print "jestem"
-      print $ "foo: " ++ show succs
       if val == elem
         then return False
         else updateBottomLevel currMarkableRef currRef (currMRefs, succs)
@@ -190,7 +186,6 @@ insert elem head @ Head { maxLevel = maxLevel } = do
       newNode @ Node { topLevel = topLevel } <- makeNode succs
       newNodeRef <- newIORef newNode
       success <- compareAndSet currMarkableRef currRef newNodeRef False False
-      print $ "success: " ++ show success
       if not success
         then insert elem head
         else updateUpperLevels (bottomLevel+1) topLevel (currMRefs, succs) newNode
