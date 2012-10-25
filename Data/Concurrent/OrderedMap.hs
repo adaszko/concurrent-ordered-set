@@ -11,8 +11,8 @@ module Data.Concurrent.OrderedMap (
 
 -- TODO: Try unboxed types
 -- TODO: Potential false-sharing in nodes' arrays
--- TODO: Use of lists insead of arrays would free the user from having to
---       specify maximal capacity and would potentially decrease false sharing
+-- TODO: Use of lists in place of arrays would free the user from having to
+--       specify maximal capacity and would possibly decrease false sharing
 
 
 import Data.List (replicate, sortBy)
@@ -225,7 +225,7 @@ delete elem head = do
       iMarkedIt <- compareAndSet currMarkableRef currRef currRef False True
       marked <- isMarked currMarkableRef
       if iMarkedIt
-        then do find elem head
+        then do find elem head -- physically remove marked nodes
                 return True
         else if marked
              then return False
