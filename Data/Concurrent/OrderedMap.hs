@@ -125,6 +125,7 @@ find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
       currMarkableRef <- readArray currMarkableRefs level
       currRef <- readMarkableRef currMarkableRef
       curr <- readIORef currRef
+      marked <- isMarked currMarkableRef
       case curr of
         Tail -> do
           writeArray currMRefs level currMarkableRef
@@ -133,9 +134,8 @@ find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
         Node { value = val, next = succMarkableRefs } -> do
           succMarkableRef <- readArray succMarkableRefs level
           succRef <- readMarkableRef succMarkableRef
-          marked <- isMarked succMarkableRef
           if marked
-            then do success <- compareAndSet currMarkableRef currRef succRef False False
+            then do success <- compareAndSet currMarkableRef currRef succRef True False
                     if success
                       then go level currMarkableRefs result
                       else find elem head
@@ -148,9 +148,6 @@ find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
                               else do writeArray succs level curr
                                       return result
 
-                   -- No need to update either predecessor or successor at the
-                   -- rightward step because it will be overwritten in the
-                   -- coming (downward) step
                    LT -> go level succMarkableRefs result
 
                    -- Even when the node with requested element is found, we
@@ -226,14 +223,13 @@ delete elem head = do
     Tail -> return False
     Node { value = val, topLevel = topLevel } -> do
       if val == elem
-        then do markUpperLevels topLevel currMRefs
-                markBottomLevel currMRefs
+        then markUpperLevels topLevel currMRefs
         else return False
 
   where
 
     markUpperLevels level currMRefs
-      | level == 0 = return ()
+      | level == bottomLevel = markBottomLevel currMRefs
       | otherwise  = do
         currMarkableRef <- readArray currMRefs level
         currRef <- readMarkableRef currMarkableRef

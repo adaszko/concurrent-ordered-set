@@ -142,4 +142,4 @@ main = do
   quickCheck prop_sortsElimsDups
   quickCheck prop_inserts
   quickCheck prop_contains
-  --quickCheck prop_deletes
+  quickCheck prop_deletes
