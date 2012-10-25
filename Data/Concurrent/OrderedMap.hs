@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
-
 module Data.Concurrent.OrderedMap (
   OrderedMap,
   empty,
@@ -10,8 +8,6 @@ module Data.Concurrent.OrderedMap (
   delete
   ) where
 
-
--- XXX: Remove (Show a) from contexts
 
 -- TODO: Try unboxed types
 -- TODO: Potential false-sharing in nodes' arrays
@@ -25,25 +21,10 @@ import Data.IORef
 import Control.Monad
 import System.Random (randomRIO)
 import Control.Concurrent.MarkableIORef
-import Debug.Trace -- XXX
-import System.IO.Unsafe -- XXX
 
 
 type NextArray a = IOArray Int (MarkableIORef (OrderedMap a))
 type NodeArray a = IOArray Int (OrderedMap a)
-
-
---- XXX: Remove this
-instance Show a => Show (MarkableIORef a) where
-  show = show . unsafePerformIO . readIORef . unsafePerformIO . readMarkableRef
-
--- XXX: Remove this
-instance Show a => Show (NextArray a) where
-  show = show . unsafePerformIO . getElems
-
--- XXX: Remove this
-instance Show a => Show (NodeArray a) where
-  show = show . unsafePerformIO . getElems
 
 
 data OrderedMap a
@@ -56,7 +37,7 @@ data OrderedMap a
     , next :: NextArray a
     , topLevel :: Int
     }
-  | Tail deriving (Show) -- XXX: Remove this
+  | Tail
 
 
 bottomLevel :: Int
@@ -83,7 +64,7 @@ empty maxLevel = do
   return Head { maxLevel = maxLevel, next = skipPtrs }
 
 
-fromList :: (Show a, Ord a) => Int -> [a] -> IO (OrderedMap a)
+fromList :: Ord a => Int -> [a] -> IO (OrderedMap a)
 fromList maxLevel contents = do
   list <- empty maxLevel
   mapM_ (\elem -> insert elem list) $ sortBy (flip compare) contents
@@ -114,7 +95,7 @@ containing elem)
 elem or Tail, node from first element of this pair)
 
 -}
-find :: (Show a, Ord a) => a -> OrderedMap a -> IO (NextArray a, NodeArray a)
+find :: Ord a => a -> OrderedMap a -> IO (NextArray a, NodeArray a)
 find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
   currMRefs <- newArray_ (bottomLevel, maxLevel) :: IO (NextArray a)
   succs <- newArray_ (bottomLevel, maxLevel) :: Ord a => IO (NodeArray a)
@@ -170,7 +151,7 @@ randomLevel maxLevel = do
   return $ length tails
 
 
-insert :: (Show a, Ord a) => a -> OrderedMap a -> IO Bool
+insert :: Ord a => a -> OrderedMap a -> IO Bool
 insert elem head @ Head { maxLevel = maxLevel } = do
   (currMRefs, succs) <- find elem head
   currMarkableRef <- readArray currMRefs bottomLevel
@@ -213,7 +194,7 @@ insert elem head @ Head { maxLevel = maxLevel } = do
 
 
 
-delete :: (Show a, Ord a) => a -> OrderedMap a -> IO Bool
+delete :: Ord a => a -> OrderedMap a -> IO Bool
 delete elem head = do
   (currMRefs, succs) <- find elem head
   currMarkableRef <- readArray currMRefs bottomLevel

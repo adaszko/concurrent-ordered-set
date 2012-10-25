@@ -134,11 +134,13 @@ prop_deletes = monadicIO $ do
 
 main = do
   quickCheck prop_empty
-  -- TODO: indicate somehow that those few test cases below are deterministic
+  
+  -- TODO: indicate somehow that these test cases are deterministic
   quickCheck prop_trivial_one_level_insert_0_1
   quickCheck prop_trivial_one_level_insert_1_0
   quickCheck prop_trivial_two_level_insert_0_1
   quickCheck prop_trivial_two_level_insert_1_0
+  
   quickCheck prop_sortsElimsDups
   quickCheck prop_inserts
   quickCheck prop_contains
