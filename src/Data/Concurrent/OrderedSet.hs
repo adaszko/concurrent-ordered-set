@@ -1,5 +1,5 @@
-module Data.Concurrent.OrderedMap (
-  OrderedMap,
+module Data.Concurrent.OrderedSet (
+  OrderedSet,
   empty,
   fromList,
   toList,
@@ -23,11 +23,11 @@ import System.Random (randomRIO)
 import Control.Concurrent.MarkableIORef
 
 
-type NextArray a = IOArray Int (MarkableIORef (OrderedMap a))
-type NodeArray a = IOArray Int (OrderedMap a)
+type NextArray a = IOArray Int (MarkableIORef (OrderedSet a))
+type NodeArray a = IOArray Int (OrderedSet a)
 
 
-data OrderedMap a
+data OrderedSet a
   = Head
     { maxLevel :: Int
     , next :: NextArray a
@@ -44,34 +44,34 @@ bottomLevel :: Int
 bottomLevel = 1
 
 
-newNextArray :: Int -> [OrderedMap a] -> IO (NextArray a)
+newNextArray :: Int -> [OrderedSet a] -> IO (NextArray a)
 newNextArray topLevel succs = do
   refs <- mapM newIORef succs
   markableRefs <- mapM (\ref -> newMarkableRef ref False) $ take topLevel refs
   newListArray (bottomLevel, topLevel) markableRefs
 
 
-newNode :: a -> Int -> NodeArray a -> IO (OrderedMap a)
+newNode :: a -> Int -> NodeArray a -> IO (OrderedSet a)
 newNode value topLevel succs = do
   elems <- getElems succs
   nextArray <- newNextArray topLevel elems
   return Node { value = value, next = nextArray, topLevel = topLevel }
 
 
-empty :: Int -> IO (OrderedMap a)
+empty :: Int -> IO (OrderedSet a)
 empty maxLevel = do
   skipPtrs <- newNextArray maxLevel $ replicate maxLevel Tail
   return Head { maxLevel = maxLevel, next = skipPtrs }
 
 
-fromList :: Ord a => Int -> [a] -> IO (OrderedMap a)
+fromList :: Ord a => Int -> [a] -> IO (OrderedSet a)
 fromList maxLevel contents = do
   list <- empty maxLevel
   mapM_ (\elem -> insert elem list) $ sortBy (flip compare) contents
   return list
 
 
-toList :: OrderedMap a -> IO [a]
+toList :: OrderedSet a -> IO [a]
 toList Head { next = firstMarkableRefs } = go firstMarkableRefs
   where
     go currMarkableRefs = do
@@ -95,7 +95,7 @@ containing elem)
 elem or Tail, node from first element of this pair)
 
 -}
-find :: Ord a => a -> OrderedMap a -> IO (NextArray a, NodeArray a)
+find :: Ord a => a -> OrderedSet a -> IO (NextArray a, NodeArray a)
 find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
   currMRefs <- newArray_ (bottomLevel, maxLevel) :: IO (NextArray a)
   succs <- newArray_ (bottomLevel, maxLevel) :: Ord a => IO (NodeArray a)
@@ -151,7 +151,7 @@ randomLevel maxLevel = do
   return $ length tails
 
 
-insert :: Ord a => a -> OrderedMap a -> IO Bool
+insert :: Ord a => a -> OrderedSet a -> IO Bool
 insert elem head @ Head { maxLevel = maxLevel } = do
   (currMRefs, succs) <- find elem head
   currMarkableRef <- readArray currMRefs bottomLevel
@@ -194,7 +194,7 @@ insert elem head @ Head { maxLevel = maxLevel } = do
 
 
 
-delete :: Ord a => a -> OrderedMap a -> IO Bool
+delete :: Ord a => a -> OrderedSet a -> IO Bool
 delete elem head = do
   (currMRefs, succs) <- find elem head
   currMarkableRef <- readArray currMRefs bottomLevel
@@ -233,7 +233,7 @@ delete elem head = do
 
 
 
-contains :: Ord a => a -> OrderedMap a -> IO Bool
+contains :: Ord a => a -> OrderedSet a -> IO Bool
 contains elem Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
   firstMarkableRef <- readArray firstMarkableRefs maxLevel
   go maxLevel firstMarkableRefs

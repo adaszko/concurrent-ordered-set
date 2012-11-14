@@ -1,7 +1,7 @@
 import qualified Data.List
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
-import Data.Concurrent.OrderedMap
+import Data.Concurrent.OrderedSet
 
 
 -- TODO: Test cases involving forkIO
@@ -40,8 +40,8 @@ prop_trivial_one_level_insert_0_1 = monadicIO $ do
     insert 1 omap
     toList omap
   assert $ result == [0, 1]
-  
-  
+
+
 prop_trivial_one_level_insert_1_0 :: Property
 prop_trivial_one_level_insert_1_0 = monadicIO $ do
   let level = 1
@@ -134,13 +134,13 @@ prop_deletes = monadicIO $ do
 
 main = do
   quickCheck prop_empty
-  
+
   -- TODO: indicate somehow that these test cases are deterministic
   quickCheck prop_trivial_one_level_insert_0_1
   quickCheck prop_trivial_one_level_insert_1_0
   quickCheck prop_trivial_two_level_insert_0_1
   quickCheck prop_trivial_two_level_insert_1_0
-  
+
   quickCheck prop_sortsElimsDups
   quickCheck prop_inserts
   quickCheck prop_contains

@@ -1,14 +1,26 @@
 What is it?
 ===========
 
-A concurrent, ordered map data type based on skip lists.
+A concurrent, lock-free, ordered set data type based on skip lists (which in
+turn utilise `atomicModifyIORef`).
 
 
 Status
 ======
 
-At this point, this is still a set, not a map.  Passes all single-threaded
-QuickCheck test cases.
+Passes all single-threaded QuickCheck test cases.
+
+
+Installation
+============
+
+TODO
+
+
+Usage
+=====
+
+TODO
 
 
 To Do
@@ -16,7 +28,7 @@ To Do
 
 * Multi-threaded test cases
 * Benchmarks (esp. scalability)
-* Make Map instances of Functor, Foldable, etc.
+* Make OrderedSet instances of Functor, Foldable, etc.
 * Haddock documentation
 * Cabal package
 
