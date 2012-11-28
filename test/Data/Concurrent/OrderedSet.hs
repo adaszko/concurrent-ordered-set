@@ -26,8 +26,8 @@ prop_empty :: Property
 prop_empty = monadicIO $ do
   level <- pick genLevel
   result <- run $ do
-    omap <- empty level
-    toList omap
+    oset <- empty level
+    toList oset
   assert $ null result
 
 
@@ -35,10 +35,10 @@ prop_trivial_one_level_insert_0_1 :: Property
 prop_trivial_one_level_insert_0_1 = monadicIO $ do
   let level = 1
   result <- run $ do
-    omap <- empty level
-    insert 0 omap
-    insert 1 omap
-    toList omap
+    oset <- empty level
+    insert 0 oset
+    insert 1 oset
+    toList oset
   assert $ result == [0, 1]
 
 
@@ -46,40 +46,40 @@ prop_trivial_one_level_insert_1_0 :: Property
 prop_trivial_one_level_insert_1_0 = monadicIO $ do
   let level = 1
   result <- run $ do
-    omap <- empty level
-    insert 1 omap
-    insert 0 omap
-    toList omap
+    oset <- empty level
+    insert 1 oset
+    insert 0 oset
+    toList oset
   assert $ result == [0, 1]
 
 
 prop_trivial_two_level_insert_0_1 :: Property
 prop_trivial_two_level_insert_0_1 = monadicIO $ do
   result <- run $ do
-    omap <- empty 2
-    insert 0 omap
-    insert 1 omap
-    toList omap
+    oset <- empty 2
+    insert 0 oset
+    insert 1 oset
+    toList oset
   assert $ result == [0, 1]
 
 
 prop_trivial_two_level_insert_1_0 :: Property
 prop_trivial_two_level_insert_1_0 = monadicIO $ do
   result <- run $ do
-    omap <- empty 2
-    insert 1 omap
-    insert 0 omap
-    toList omap
+    oset <- empty 2
+    insert 1 oset
+    insert 0 oset
+    toList oset
   assert $ result == [0, 1]
 
 
 prop_trivial_one_level_insert_delete_0 :: Property
 prop_trivial_one_level_insert_delete_0 = monadicIO $ do
   result <- run $ do
-    omap <- empty 0
-    insert 0 omap
-    delete 0 omap
-    toList omap
+    oset <- empty 0
+    insert 0 oset
+    delete 0 oset
+    toList oset
   assert $ null result
 
 
@@ -88,8 +88,8 @@ prop_sortsElimsDups = monadicIO $ do
   contents <- pick $ listOf genElem
   level <- pick genLevel
   result <- run $ do
-    omap <- fromList level contents
-    toList omap
+    oset <- fromList level contents
+    toList oset
   assert $ result == uniq contents
 
 
@@ -99,9 +99,9 @@ prop_inserts = monadicIO $ do
   element <- pick genElem
   level <- pick genLevel
   (result, inserted) <- run $ do
-    omap <- fromList level contents
-    inserted <- insert element omap
-    result <- toList omap
+    oset <- fromList level contents
+    inserted <- insert element oset
+    result <- toList oset
     return (result, inserted)
   assert $ result == uniq (element : contents)
   assert $ inserted /= elem element contents
@@ -113,8 +113,8 @@ prop_contains = monadicIO $ do
   element <- pick genElem
   level <- pick genLevel
   found <- run $ do
-    omap <- fromList level contents
-    contains element omap
+    oset <- fromList level contents
+    contains element oset
   assert $ found == elem element contents
 
 
@@ -124,9 +124,9 @@ prop_deletes = monadicIO $ do
   element <- pick genElem
   level <- pick genLevel
   (result, deleted) <- run $ do
-    omap <- fromList level contents
-    deleted <- delete element omap
-    result <- toList omap
+    oset <- fromList level contents
+    deleted <- delete element oset
+    result <- toList oset
     return (result, deleted)
   assert $ result == (Data.List.delete element $ uniq contents)
   assert $ deleted == elem element contents

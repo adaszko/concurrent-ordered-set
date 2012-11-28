@@ -6,7 +6,7 @@ module Data.Concurrent.OrderedSet (
   insert,
   contains,
   delete
-  ) where
+) where
 
 
 -- TODO: Try unboxed types
