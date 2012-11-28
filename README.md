@@ -8,7 +8,7 @@ turn utilise `atomicModifyIORef`).
 Status
 ======
 
-Passes all single-threaded QuickCheck test cases.
+Passes all single-threaded QuickCheck test cases.  Fails multi-threaded ones.
 
 
 Installation
@@ -26,9 +26,7 @@ TODO
 To Do
 =====
 
-* Multi-threaded test cases
 * Benchmarks (esp. scalability)
-* Make OrderedSet instances of Functor, Foldable, etc.
 * Haddock documentation
 * Cabal package
 

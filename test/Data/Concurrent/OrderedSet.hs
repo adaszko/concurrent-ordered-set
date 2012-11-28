@@ -2,9 +2,10 @@ import qualified Data.List
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 import Data.Concurrent.OrderedSet
-
-
--- TODO: Test cases involving forkIO
+import Control.Concurrent
+import Control.Concurrent.MVar
+import qualified Control.Exception
+import Control.Monad
 
 
 type ElementType = Int
@@ -18,8 +19,21 @@ genLevel :: Gen Int
 genLevel = choose (1, 10)
 
 
+genThreads :: PropertyM IO Int
+genThreads = do
+  numCaps <- run getNumCapabilities
+  pick $ choose (1, 2*numCaps)
+
+
 uniq :: Ord a => [a] -> [a]
 uniq = map head . Data.List.group . Data.List.sort
+
+
+myForkIO :: IO () -> IO (MVar ())
+myForkIO io = do
+  mvar <- newEmptyMVar
+  forkIO (io `Control.Exception.finally` putMVar mvar ())
+  return mvar
 
 
 prop_empty :: Property
@@ -107,6 +121,21 @@ prop_inserts = monadicIO $ do
   assert $ inserted /= elem element contents
 
 
+prop_inserts_very_concurrently :: Property
+prop_inserts_very_concurrently = monadicIO $ do
+  contents <- pick $ listOf genElem
+  numThreads <- genThreads
+  level <- pick genLevel
+  elements <- replicateM numThreads $ pick $ listOf genElem
+  result <- run $ do
+    oset <- fromList level contents
+    mvars <- mapM (\elem -> myForkIO $ mapM_ (flip insert oset) elem) elements
+    mapM_ takeMVar mvars
+    toList oset
+  let expected = uniq $ contents ++ concat elements
+  assert $ result == expected
+
+
 prop_contains :: Property
 prop_contains = monadicIO $ do
   contents <- pick $ listOf genElem
@@ -132,6 +161,21 @@ prop_deletes = monadicIO $ do
   assert $ deleted == elem element contents
 
 
+prop_deletes_very_concurrently :: Property
+prop_deletes_very_concurrently = monadicIO $ do
+  contents <- pick $ listOf genElem
+  numThreads <- genThreads
+  level <- pick genLevel
+  elements <- replicateM numThreads $ pick $ listOf genElem
+  result <- run $ do
+    oset <- fromList level contents
+    mvars <- mapM (\elem -> myForkIO $ mapM_ (flip delete oset) elem) elements
+    mapM_ takeMVar mvars
+    toList oset
+  let expected = foldr Data.List.delete (uniq contents) $ concat elements
+  assert $ result == expected
+
+
 main = do
   quickCheck prop_empty
 
@@ -145,3 +189,6 @@ main = do
   quickCheck prop_inserts
   quickCheck prop_contains
   quickCheck prop_deletes
+
+  quickCheck prop_inserts_very_concurrently
+  quickCheck prop_deletes_very_concurrently
