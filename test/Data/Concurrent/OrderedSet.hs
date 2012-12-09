@@ -136,6 +136,21 @@ prop_inserts_very_concurrently = monadicIO $ do
   assert $ result == expected
 
 
+prop_inserts_concurrently :: Property
+prop_inserts_concurrently = monadicIO $ do
+  let contents = []
+  let level = 1
+  let elements = [[1], [2]]
+  result <- run $ do
+    oset <- fromList level contents
+    mvars <- mapM (\elem -> myForkIO $ mapM_ (flip insert oset) elem) elements
+    mapM_ takeMVar mvars
+    toList oset
+  let expected = uniq $ contents ++ concat elements
+  assert $ result == expected
+
+
+
 prop_contains :: Property
 prop_contains = monadicIO $ do
   contents <- pick $ listOf genElem
@@ -176,6 +191,20 @@ prop_deletes_very_concurrently = monadicIO $ do
   assert $ result == expected
 
 
+prop_deletes_concurrently :: Property
+prop_deletes_concurrently = monadicIO $ do
+  let contents = [1,2]
+  let level = 1
+  let elements = [[1], [2]]
+  result <- run $ do
+    oset <- fromList level contents
+    mvars <- mapM (\elem -> myForkIO $ mapM_ (flip delete oset) elem) elements
+    mapM_ takeMVar mvars
+    toList oset
+  let expected = foldr Data.List.delete (uniq contents) $ concat elements
+  assert $ result == expected
+
+
 main = do
   quickCheck prop_empty
 
@@ -190,5 +219,7 @@ main = do
   quickCheck prop_contains
   quickCheck prop_deletes
 
+  quickCheck prop_inserts_concurrently
+  quickCheck prop_deletes_concurrently
   quickCheck prop_inserts_very_concurrently
   quickCheck prop_deletes_very_concurrently
