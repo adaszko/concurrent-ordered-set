@@ -150,7 +150,6 @@ prop_inserts_concurrently = monadicIO $ do
   assert $ result == expected
 
 
-
 prop_contains :: Property
 prop_contains = monadicIO $ do
   contents <- pick $ listOf genElem
@@ -220,6 +219,7 @@ main = do
   quickCheck prop_deletes
 
   quickCheck prop_inserts_concurrently
-  quickCheck prop_deletes_concurrently
   quickCheck prop_inserts_very_concurrently
+
+  quickCheck prop_deletes_concurrently
   quickCheck prop_deletes_very_concurrently
