@@ -45,6 +45,14 @@ bottomLevel :: Int
 bottomLevel = 1
 
 
+newEmptyNextArray :: Int -> IO (NextArray a)
+newEmptyNextArray topLevel = newArray_ (bottomLevel, topLevel)
+
+
+newEmptyNodeArray :: Int -> IO (NodeArray a)
+newEmptyNodeArray topLevel = newArray_ (bottomLevel, topLevel)
+
+
 newNextArray :: Int -> [OrderedSet a] -> IO (NextArray a)
 newNextArray topLevel succs = do
   refs <- mapM newIORef succs
@@ -77,6 +85,7 @@ toList :: OrderedSet a -> IO [a]
 toList Head { next = firstMarkableRefs } = go firstMarkableRefs
   where
     go currMarkableRefs = do
+      (bottomLevel, _) <- getBounds currMarkableRefs
       currMarkableRef <- readArray currMarkableRefs bottomLevel
       currRef <- readMarkableRef currMarkableRef
       curr <- readIORef currRef
@@ -99,8 +108,8 @@ elem or Tail, node from first element of this pair)
 -}
 find :: Ord a => a -> OrderedSet a -> IO (NextArray a, OrderedSetIORef a, NodeArray a)
 find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
-  currMRefs <- newArray_ (bottomLevel, maxLevel) :: IO (NextArray a)
-  succs <- newArray_ (bottomLevel, maxLevel) :: Ord a => IO (NodeArray a)
+  currMRefs <- newEmptyNextArray maxLevel
+  succs <- newEmptyNodeArray maxLevel
   snapshotRef <- newIORef undefined
   go maxLevel firstMarkableRefs (currMRefs, snapshotRef, succs)
   where
@@ -158,6 +167,7 @@ randomLevel maxLevel = do
 insert :: Ord a => a -> OrderedSet a -> IO Bool
 insert elem head @ Head { maxLevel = maxLevel } = do
   (currMRefs, snapshotRef, succs) <- find elem head
+  (bottomLevel, _) <- getBounds currMRefs
   currMarkableRef <- readArray currMRefs bottomLevel
   curr <- readIORef snapshotRef
   case curr of
@@ -173,6 +183,7 @@ insert elem head @ Head { maxLevel = maxLevel } = do
 
     makeNode curr succs = do
       topLevel <- randomLevel maxLevel
+      (bottomLevel, _) <- getBounds succs
       writeArray succs bottomLevel curr
       newNode elem topLevel succs
 
@@ -202,6 +213,7 @@ insert elem head @ Head { maxLevel = maxLevel } = do
 delete :: Ord a => a -> OrderedSet a -> IO Bool
 delete elem head = do
   (currMRefs, snapshotRef, succs) <- find elem head
+  (bottomLevel, _) <- getBounds currMRefs
   currMarkableRef <- readArray currMRefs bottomLevel
   curr <- readIORef snapshotRef
   case curr of
@@ -216,11 +228,11 @@ delete elem head = do
 
     markUpperLevels [currMarkableRef] = markBottomLevel currMarkableRef
     markUpperLevels curr @ (currMarkableRef : rest) = do
-        currRef <- readMarkableRef currMarkableRef
-        success <- attemptMark currMarkableRef currRef True
-        if success
-          then markUpperLevels rest
-          else markUpperLevels curr
+      currRef <- readMarkableRef currMarkableRef
+      success <- attemptMark currMarkableRef currRef True
+      if success
+        then markUpperLevels rest
+        else markUpperLevels curr
 
     markBottomLevel currMarkableRef = do
       currRef <- readMarkableRef currMarkableRef
