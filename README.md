@@ -8,7 +8,7 @@ turn utilise `atomicModifyIORef`).
 Status
 ======
 
-Passes all single-threaded QuickCheck test cases.  Fails multi-threaded ones.
+Passes all QuickCheck test cases.
 
 
 Installation

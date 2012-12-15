@@ -1,7 +1,7 @@
 {-|
 
    This implementation of sets is based on /skip lists/.  Atomicity is
-   achieved thanks to @atomicModifyIORef@.
+   achieved indirectly thanks to @atomicModifyIORef@.
 
 -}
 
@@ -16,140 +16,32 @@ module Data.Concurrent.OrderedSet (
 ) where
 
 
-import Data.List (replicate, sortBy)
-import Data.Array.IO
 import Data.IORef
+import Data.List (sortBy)
+import Data.Array.IO
 import Control.Monad
 import System.Random (randomRIO)
 import Control.Concurrent.MarkableIORef
 
 
-type OrderedSetIORef a = IORef (OrderedSet a)
-type NextArray a = IOArray Int (MarkableIORef (OrderedSet a))
-type NodeArray a = IOArray Int (OrderedSet a)
+type MarkableRefArray a = IOArray Int (MarkableIORef (OrderedSet a))
+type RefArray a = IOArray Int (IORef (OrderedSet a))
 
 
 data OrderedSet a
   = Head
     { maxLevel :: Int
-    , next     :: NextArray a
+    , next     :: MarkableRefArray a
     }
   | Node
-    { value :: a
-    , next  :: NextArray a
+    { key  :: a
+    , next :: MarkableRefArray a
     }
   | Tail
 
 
 bottomLevel :: Int
 bottomLevel = 1
-
-
-newEmptyNextArray :: Int -> IO (NextArray a)
-newEmptyNextArray topLevel = newArray_ (bottomLevel, topLevel)
-
-
-newEmptyNodeArray :: Int -> IO (NodeArray a)
-newEmptyNodeArray topLevel = newArray_ (bottomLevel, topLevel)
-
-
-newNextArray :: Int -> [OrderedSet a] -> IO (NextArray a)
-newNextArray topLevel succs = do
-  refs <- mapM newIORef succs
-  markableRefs <- mapM (flip newMarkableRef False) $ take topLevel refs
-  newListArray (bottomLevel, topLevel) markableRefs
-
-
-newNode :: a -> Int -> NodeArray a -> IO (OrderedSet a)
-newNode value topLevel succs = do
-  elems <- getElems succs
-  nextArray <- newNextArray topLevel elems
-  return Node { value = value, next = nextArray }
-
-
-empty :: Int -> IO (OrderedSet a)
-empty maxLevel = do
-  skipPtrs <- newNextArray maxLevel $ replicate maxLevel Tail
-  return Head { maxLevel = maxLevel, next = skipPtrs }
-
-
-fromList :: Ord a => Int -> [a] -> IO (OrderedSet a)
-fromList maxLevel contents = do
-  list <- empty maxLevel
-  mapM_ (flip insert list) $ sortBy (flip compare) contents
-  return list
-
-
--- | Wait-free
-toList :: OrderedSet a -> IO [a]
-toList Head { next = firstMarkableRefs } = go firstMarkableRefs
-  where
-    go currMarkableRefs = do
-      (bottomLevel, _) <- getBounds currMarkableRefs
-      currMarkableRef <- readArray currMarkableRefs bottomLevel
-      currRef <- readMarkableRef currMarkableRef
-      curr <- readIORef currRef
-      case curr of
-        Tail ->
-          return []
-        Node { value = val, next = succMarkableRefs } -> do
-          rest <- go succMarkableRefs
-          return $ val : rest
-
-
-{- Returns:
-
-1) elem found: (markableRef to node containing elem, successor of node
-containing elem)
-
-2) elem not found: (markableRef to node containing smallest value greater than
-elem or Tail, node from first element of this pair)
-
--}
-find :: Ord a => a -> OrderedSet a -> IO (NextArray a, OrderedSetIORef a, NodeArray a)
-find elem head @ Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
-  currMRefs <- newEmptyNextArray maxLevel
-  succs <- newEmptyNodeArray maxLevel
-  snapshotRef <- newIORef undefined
-  go maxLevel firstMarkableRefs (currMRefs, snapshotRef, succs)
-  where
-    go 0 _ result = return result
-    go level currMarkableRefs result @ (currMRefs, snapshotRef, succs) = do
-      currMarkableRef <- readArray currMarkableRefs level
-      snapshotRef <- readMarkableRef currMarkableRef
-      curr <- readIORef snapshotRef
-      marked <- isMarked currMarkableRef
-      case curr of
-        Tail -> do
-          writeArray currMRefs level currMarkableRef
-          writeArray succs level curr
-          go (level - 1) currMarkableRefs (currMRefs, snapshotRef, succs)
-        Node { value = val, next = succMarkableRefs } -> do
-          succMarkableRef <- readArray succMarkableRefs level
-          succRef <- readMarkableRef succMarkableRef
-          if marked
-            then do success <- compareAndSet currMarkableRef snapshotRef succRef True False
-                    if success
-                      then go level currMarkableRefs (currMRefs, snapshotRef, succs)
-                      else find elem head
-            else case val `compare` elem of
-                   GT -> do writeArray currMRefs level currMarkableRef
-                            if level > 1
-                              then do succ <- readIORef succRef
-                                      writeArray succs level succ
-                                      go (level - 1) currMarkableRefs (currMRefs, snapshotRef, succs)
-                              else do writeArray succs level curr
-                                      return (currMRefs, snapshotRef, succs)
-
-                   LT -> go level succMarkableRefs (currMRefs, snapshotRef, succs)
-
-                   -- Even when the node with requested element is found, we
-                   -- proceed to lower levels in order to fill up arrays of
-                   -- predecessors and successors
-                   EQ -> do writeArray currMRefs level currMarkableRef
-                            succ <- readIORef succRef
-                            writeArray succs level succ
-                            go (level - 1) currMarkableRefs (currMRefs, snapshotRef, succs)
 
 
 flipCoin :: IO Bool
@@ -163,107 +55,167 @@ randomLevel maxLevel = do
   return $ length tails
 
 
--- | Lock-free
-insert :: Ord a => a -> OrderedSet a -> IO Bool
-insert elem head @ Head { maxLevel = maxLevel } = do
-  (currMRefs, snapshotRef, succs) <- find elem head
-  (bottomLevel, _) <- getBounds currMRefs
-  currMarkableRef <- readArray currMRefs bottomLevel
-  curr <- readIORef snapshotRef
-  case curr of
-    Tail ->
-      updateBottomLevel currMarkableRef curr (currMRefs, snapshotRef, succs)
-    Node { value = val } ->
-      -- INVARIANT curr contains smallest val in list such that elem <= val
-      if val == elem
-        then return False
-        else updateBottomLevel currMarkableRef curr (currMRefs, snapshotRef, succs)
+empty :: Int -> IO (OrderedSet a)
+empty maxLevel = do
+  tailRef <- newIORef Tail
+  mrefs <- mapM (flip newMarkableRef False) $ replicate maxLevel tailRef
+  nextRefs <- newListArray (bottomLevel, maxLevel) mrefs
+  return Head { maxLevel = maxLevel, next = nextRefs }
+
+
+
+-- | Calls insert repeatedly
+fromList :: Ord a => Int -> [a] -> IO (OrderedSet a)
+fromList maxLevel contents = do
+  list <- empty maxLevel
+  mapM_ (flip insert list) contents
+  return list
+
+
+
+-- | Wait-free
+toList :: OrderedSet a -> IO [a]
+toList Head { next = mrefs } = go mrefs
 
   where
 
-    makeNode curr succs = do
-      topLevel <- randomLevel maxLevel
-      (bottomLevel, _) <- getBounds succs
-      writeArray succs bottomLevel curr
-      newNode elem topLevel succs
+  go mrefs = do
+    curr <- readArray mrefs bottomLevel >>= readMarkableRef >>= readIORef
+    case curr of
+      Tail -> return []
+      Node { key = key, next = succMRefs } -> do
+        rest <- go succMRefs
+        return $ key : rest
 
-    updateBottomLevel currMarkableRef curr (currMRefs, snapshotRef, succs) = do
-      newNode <- makeNode curr succs
-      newNodeRef <- newIORef newNode
-      success <- compareAndSet currMarkableRef snapshotRef newNodeRef False False
-      if not success
-        then insert elem head
-        else do elems <- getElems $ next newNode
-                updateUpperLevels (drop 1 elems) newNode
 
-    updateUpperLevels (currMarkableRef : rest) newNode = do
-      currRef <- readMarkableRef currMarkableRef
-      newNodeRef <- newIORef newNode
-      success <- compareAndSet currMarkableRef currRef newNodeRef False False
-      if success
-        then updateUpperLevels rest newNode
-        else do (newCurrMRefs, _, _) <- find elem head
-                elems <- getElems newCurrMRefs
-                updateUpperLevels elems newNode
-    updateUpperLevels [] _ = return True
+-- | Lock-free
+find :: Ord a => a -> OrderedSet a -> IO (Bool, MarkableRefArray a, RefArray a)
+find elem head @ Head { maxLevel = maxLevel, next = mrefs } = do
+  currMRefs <- newArray_ (bottomLevel, maxLevel) :: IO (MarkableRefArray a)
+  currRefs <- newArray_ (bottomLevel, maxLevel) :: IO (RefArray a)
+  go maxLevel mrefs currMRefs currRefs
+
+  where
+
+  go 0 _ currMRefs currRefs = do
+    curr <- readArray currRefs bottomLevel >>= readIORef
+    case curr of
+      Tail -> return (False, currMRefs, currRefs)
+      Node { key = key } -> return (key == elem, currMRefs, currRefs)
+  go level mrefs currMRefs currRefs = do
+    currMarkableRef <- readArray mrefs level
+    currRef <- readMarkableRef currMarkableRef
+    curr <- readIORef currRef
+    case curr of
+      Node { key = key, next = succMRefs } -> do
+        (succRef, marked) <- readArray succMRefs level >>= readMarkableRefMark
+        if marked
+          then do snip <- compareAndSet currMarkableRef currRef succRef False False
+                  if snip
+                    then go level mrefs currMRefs currRefs
+                    else find elem head
+          else if key < elem
+            then go level succMRefs currMRefs currRefs
+            else do writeArray currMRefs level currMarkableRef
+                    writeArray currRefs level currRef
+                    go (level - 1) mrefs currMRefs currRefs
+      Tail -> do
+        writeArray currMRefs level currMarkableRef
+        writeArray currRefs level currRef
+        go (level - 1) mrefs currMRefs currRefs
+
+
+
+-- | Lock-free
+insert :: Ord a => a -> OrderedSet a -> IO Bool
+insert elem head @ Head { maxLevel = maxLevel } = do
+  (found, currMRefs, currRefs) <- find elem head
+  if found
+    then return False
+    else updateBottomLevel currMRefs currRefs
+
+  where
+
+  makeNodeRef :: a -> Int -> RefArray a -> IO (IORef (OrderedSet a))
+  makeNodeRef key topLevel refs = do
+    elems <- getElems refs
+    mrefs <- mapM (flip newMarkableRef False) elems
+    nextArray <- newListArray (bottomLevel, topLevel) mrefs
+    newIORef Node { key = key, next = nextArray }
+
+  updateBottomLevel currMRefs currRefs = do
+    topLevel <- randomLevel maxLevel
+    newNodeRef <- makeNodeRef elem topLevel currRefs
+    currMarkableRef <- readArray currMRefs bottomLevel
+    succRef <- readArray currRefs bottomLevel
+    success <- compareAndSet currMarkableRef succRef newNodeRef False False
+    if success
+      then updateUpperLevels (bottomLevel+1) topLevel newNodeRef currMRefs currRefs
+      else insert elem head
+
+  updateUpperLevels level topLevel newNodeRef currMRefs currRefs
+    | level < topLevel = do
+        currMarkableRef <- readArray currMRefs level
+        succRef <- readArray currRefs level
+        success <- compareAndSet currMarkableRef succRef newNodeRef False False
+        if success
+          then updateUpperLevels (level + 1) topLevel newNodeRef currMRefs currRefs
+          else insert elem head
+    | otherwise = return True
+
+
+
+-- | Wait-free
+contains :: Ord a => a -> OrderedSet a -> IO Bool
+contains elem head @ Head { maxLevel = maxLevel, next = mrefs } = go maxLevel mrefs
+
+  where
+
+  go 0 _ = return False
+  go level mrefs = do
+    curr <- readArray mrefs level >>= readMarkableRef >>= readIORef
+    case curr of
+      Node { key = key, next = succMRefs } -> do
+        (succRef, marked) <- readArray succMRefs level >>= readMarkableRefMark
+        if marked
+          then go level succMRefs
+          else case key `compare` elem of
+            LT -> go level succMRefs
+            EQ -> return True
+            GT -> go (level - 1) mrefs
+      Tail -> go (level - 1) mrefs
 
 
 
 -- | Lock-free
 delete :: Ord a => a -> OrderedSet a -> IO Bool
 delete elem head = do
-  (currMRefs, snapshotRef, succs) <- find elem head
-  (bottomLevel, _) <- getBounds currMRefs
-  currMarkableRef <- readArray currMRefs bottomLevel
-  curr <- readIORef snapshotRef
-  case curr of
-    Tail -> return False
-    Node { value = val } ->
-      if val == elem
-        then do elems <- getElems currMRefs
-                markUpperLevels $ reverse elems
-        else return False
+  (found, currMRefs, currRefs) <- find elem head
+  if not found
+    then return False
+    else do subject <- readArray currRefs bottomLevel >>= readIORef
+            (_, topLevel) <- getBounds $ next subject
+            updateUpperLevels topLevel subject
 
   where
 
-    markUpperLevels [currMarkableRef] = markBottomLevel currMarkableRef
-    markUpperLevels curr @ (currMarkableRef : rest) = do
-      currRef <- readMarkableRef currMarkableRef
-      success <- attemptMark currMarkableRef currRef True
+  updateUpperLevels level subject
+    | level == bottomLevel = updateBottomLevel subject
+    | otherwise = do
+      succMarkableRef <- readArray (next subject) level
+      (succ, marked) <- readMarkableRefMark succMarkableRef
+      success <- attemptMark succMarkableRef succ True
       if success
-        then markUpperLevels rest
-        else markUpperLevels curr
+        then updateUpperLevels (level - 1) subject
+        else updateUpperLevels level subject
 
-    markBottomLevel currMarkableRef = do
-      currRef <- readMarkableRef currMarkableRef
-      iMarkedIt <- compareAndSet currMarkableRef currRef currRef False True
-      marked <- isMarked currMarkableRef
-      if iMarkedIt
-        then do find elem head -- physically remove marked nodes
-                return True
-        else if marked
-             then return False
-             else markBottomLevel currMarkableRef
-
-
--- | Wait-free
-contains :: Ord a => a -> OrderedSet a -> IO Bool
-contains elem Head { maxLevel = maxLevel, next = firstMarkableRefs } = do
-  firstMarkableRef <- readArray firstMarkableRefs maxLevel
-  go maxLevel firstMarkableRefs
-  where
-    go 0 _ = return False
-    go level currMarkableRefs = do
-      currMarkableRef <- readArray currMarkableRefs level
-      currRef <- readMarkableRef currMarkableRef
-      curr <- readIORef currRef
-      case curr of
-        Tail -> go (level - 1) currMarkableRefs
-        Node { value = val, next = succMarkableRefs } -> do
-          marked <- isMarked currMarkableRef
-          if marked
-            then go level succMarkableRefs
-            else case val `compare` elem of
-                   GT -> go (level - 1) currMarkableRefs
-                   EQ -> return True
-                   LT -> go level succMarkableRefs
+  updateBottomLevel subject = do
+    succMarkableRef <- readArray (next subject) bottomLevel
+    succRef <- readMarkableRef succMarkableRef
+    iMarkedIt <- compareAndSet succMarkableRef succRef succRef False True
+    (succRef, marked) <- readMarkableRefMark succMarkableRef
+    if iMarkedIt
+      then find elem head >> return True
+      else if marked
+        then return False
+        else updateBottomLevel subject
