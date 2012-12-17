@@ -1,3 +1,5 @@
+module Main where
+
 import qualified Data.List
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
@@ -6,6 +8,8 @@ import Control.Concurrent
 import Control.Concurrent.MVar
 import qualified Control.Exception
 import Control.Monad
+import Test.Framework
+import Test.Framework.Providers.QuickCheck2
 
 
 type ElementType = Int
@@ -204,22 +208,27 @@ prop_deletes_concurrently = monadicIO $ do
   assert $ result == expected
 
 
-main = do
-  quickCheck prop_empty
+properties = [
+  testProperty "empty" prop_empty,
 
-  -- TODO: indicate somehow that these test cases are deterministic
-  quickCheck prop_trivial_one_level_insert_0_1
-  quickCheck prop_trivial_one_level_insert_1_0
-  quickCheck prop_trivial_two_level_insert_0_1
-  quickCheck prop_trivial_two_level_insert_1_0
+  -- TODO: indicate somehow that these are deterministic
+  testProperty "1_insert_0_1" prop_trivial_one_level_insert_0_1,
+  testProperty "1_insert_1_0" prop_trivial_one_level_insert_1_0,
+  testProperty "2_insert_0_1" prop_trivial_two_level_insert_0_1,
+  testProperty "2_insert_1_0" prop_trivial_two_level_insert_1_0,
 
-  quickCheck prop_sortsElimsDups
-  quickCheck prop_inserts
-  quickCheck prop_contains
-  quickCheck prop_deletes
+  testProperty "sortsElimsDups" prop_sortsElimsDups,
+  testProperty "inserts" prop_inserts,
+  testProperty "contains" prop_contains,
+  testProperty "deletes" prop_deletes,
 
-  quickCheck prop_inserts_concurrently
-  quickCheck prop_inserts_very_concurrently
+  testProperty "inserts_concurrently" prop_inserts_concurrently,
+  testProperty "inserts_very_concurrently" prop_inserts_very_concurrently,
 
-  quickCheck prop_deletes_concurrently
-  quickCheck prop_deletes_very_concurrently
+  testProperty "deletes_concurrently" prop_deletes_concurrently,
+  testProperty "deletes_very_concurrently" prop_deletes_very_concurrently
+  ]
+
+
+main :: IO ()
+main = defaultMain properties

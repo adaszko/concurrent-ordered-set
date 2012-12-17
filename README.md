@@ -14,7 +14,12 @@ Passes all QuickCheck test cases.
 Installation
 ============
 
-TODO
+Assuming you have GHC already installed:
+
+    $ runhaskell Setup.hs configure --enable-tests
+    $ runhaskell Setup.hs build
+    $ runhaskell Setup.hs test
+    $ runhaskell Setup.hs install
 
 
 Usage
@@ -28,7 +33,7 @@ To Do
 
 * Benchmarks (esp. scalability)
 * Haddock documentation
-* Cabal package
+* Enable -Wall and clean resulting warnings
 
 
 License
