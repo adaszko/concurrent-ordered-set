@@ -1,7 +1,7 @@
 {-|
 
-   This implementation of sets is based on /skip lists/.  Atomicity is
-   achieved indirectly thanks to @atomicModifyIORef@.
+   Concurrent implementation of sets is based on /skip lists/.  Atomicity
+   is achieved indirectly thanks to @atomicModifyIORef@.
 
 -}
 
@@ -55,6 +55,7 @@ randomLevel maxLevel = do
   return $ length tails
 
 
+-- | The Int parameter specifies maximal height of nodes.
 empty :: Int -> IO (OrderedSet a)
 empty maxLevel = do
   tailRef <- newIORef Tail
@@ -64,7 +65,8 @@ empty maxLevel = do
 
 
 
--- | Calls insert repeatedly
+-- | Calls insert repeatedly.  The worst complexity is exhibited when input
+-- list is sorted in increasing order.
 fromList :: Ord a => Int -> [a] -> IO (OrderedSet a)
 fromList maxLevel contents = do
   list <- empty maxLevel
@@ -73,7 +75,7 @@ fromList maxLevel contents = do
 
 
 
--- | Wait-free
+-- | /Wait-free/.
 toList :: OrderedSet a -> IO [a]
 toList Head { next = mrefs } = go mrefs
 
@@ -88,7 +90,7 @@ toList Head { next = mrefs } = go mrefs
         return $ key : rest
 
 
--- | Lock-free
+-- | /Lock-free/. 
 find :: Ord a => a -> OrderedSet a -> IO (Bool, MarkableRefArray a, RefArray a)
 find elem head @ Head { maxLevel = maxLevel, next = mrefs } = do
   currMRefs <- newArray_ (bottomLevel, maxLevel) :: IO (MarkableRefArray a)
@@ -126,7 +128,7 @@ find elem head @ Head { maxLevel = maxLevel, next = mrefs } = do
 
 
 
--- | Lock-free
+-- | /Lock-free/.
 insert :: Ord a => a -> OrderedSet a -> IO Bool
 insert elem head @ Head { maxLevel = maxLevel } = do
   (found, currMRefs, currRefs) <- find elem head
@@ -165,7 +167,7 @@ insert elem head @ Head { maxLevel = maxLevel } = do
 
 
 
--- | Wait-free
+-- | /Wait-free/.
 contains :: Ord a => a -> OrderedSet a -> IO Bool
 contains elem head @ Head { maxLevel = maxLevel, next = mrefs } = go maxLevel mrefs
 
@@ -187,7 +189,7 @@ contains elem head @ Head { maxLevel = maxLevel, next = mrefs } = go maxLevel mr
 
 
 
--- | Lock-free
+-- | /Lock-free/.
 delete :: Ord a => a -> OrderedSet a -> IO Bool
 delete elem head = do
   (found, currMRefs, currRefs) <- find elem head

@@ -25,7 +25,15 @@ Assuming you have GHC already installed:
 Usage
 =====
 
-TODO
+```haskell
+import Data.Concurrent.OrderedSet
+
+main = do
+  oset <- fromList [1..3]
+  delete 2 oset
+  result <- toList oset
+  putStrLn $ show result
+```
 
 
 To Do
@@ -45,4 +53,5 @@ BSD3
 References
 ==========
 
+* [Multicore Programming in Haskell](http://www.infoq.com/presentations/Multicore-Programming-in-Haskell)
 * Herlihy, Shavit: The Art of Multiprocessor Programming
