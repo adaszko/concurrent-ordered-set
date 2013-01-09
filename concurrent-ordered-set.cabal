@@ -1,33 +1,33 @@
-name:			concurrent-ordered-set
-version:		0.1
-homepage:		https://github.com/adaszko/concurrent-ordered-set
-cabal-version:		>= 1.10
-build-type:	        Simple
-license:		BSD3
-license-file:		LICENSE
-author:			Adam Szkoda
-extra-source-files:	README.md LICENSE
-stability:		experimental
-bug-reports:		https://github.com/adaszko/concurrent-ordered-set/issues
-category:		Concurrency
-synopsis:		A lock-free concurrent set implementation
-description:		A lock-free concurrent set implementation based on skip lists and atomicModifyIORef.
+name:                   concurrent-ordered-set
+version:                0.1
+homepage:               https://github.com/adaszko/concurrent-ordered-set
+cabal-version:          >= 1.10
+build-type:             Simple
+license:                BSD3
+license-file:           LICENSE
+author:                 Adam Szkoda
+extra-source-files:     README.md LICENSE
+stability:              experimental
+bug-reports:            https://github.com/adaszko/concurrent-ordered-set/issues
+category:               Concurrency
+synopsis:               A lock-free concurrent set implementation
+description:            A lock-free concurrent set implementation based on skip lists and atomicModifyIORef.
 
-source-repository	head
-    type:		git
-    location:		git://github.com/adaszko/concurrent-ordered-set.git
+source-repository       head
+    type:               git
+    location:           git://github.com/adaszko/concurrent-ordered-set.git
 
 library
-    build-depends:	base,
+    build-depends:      base,
                         random,
                         array,
                         markable-ioref
-    ghc-options:	-threaded -rtsopts
+    ghc-options:        -threaded -rtsopts
     exposed-modules:    Data.Concurrent.OrderedSet
-    default-language:	Haskell2010
+    default-language:   Haskell2010
     hs-source-dirs:     src
 
-test-suite	        Main
+test-suite              Main
     type:               exitcode-stdio-1.0
     build-depends:      base,
                         QuickCheck >= 2.0,
@@ -37,4 +37,16 @@ test-suite	        Main
     ghc-options:        -threaded -rtsopts
     hs-source-dirs:     test
     main-is:            Main.hs
-    default-language:	Haskell2010
+    default-language:   Haskell2010
+
+benchmark               bench-set
+    type:               exitcode-stdio-1.0
+    hs-source-dirs:     . bench
+    ghc-options:        -threaded -rtsopts
+    main-is:            Main.hs
+    build-depends:      base,
+                        random,
+                        containers,
+                        criterion,
+                        concurrent-ordered-set
+    default-language:   Haskell2010
