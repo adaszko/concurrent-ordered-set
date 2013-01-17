@@ -16,10 +16,10 @@ Installation
 
 Assuming you have GHC already installed:
 
-    $ runhaskell Setup.hs configure --enable-tests
-    $ runhaskell Setup.hs build
-    $ runhaskell Setup.hs test
-    $ runhaskell Setup.hs install
+    $ cabal configure --enable-tests
+    $ cabal build
+    $ cabal test
+    $ cabal install
 
 
 Usage
