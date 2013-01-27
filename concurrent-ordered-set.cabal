@@ -20,7 +20,7 @@ source-repository       head
 library
     build-depends:      base,
                         random,
-                        array,
+                        vector,
                         markable-ioref
     ghc-options:        -threaded -rtsopts
     exposed-modules:    Data.Concurrent.OrderedSet

@@ -41,7 +41,6 @@ To Do
 
 * Haddock documentation
 * Enable -Wall and clean resulting warnings
-* Switch to Data.Vector
 
 
 License
