@@ -36,13 +36,6 @@ main = do
 ```
 
 
-To Do
-=====
-
-* Haddock documentation
-* Enable -Wall and clean resulting warnings
-
-
 License
 =======
 

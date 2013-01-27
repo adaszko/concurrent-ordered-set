@@ -5,7 +5,6 @@ import Test.QuickCheck
 import Test.QuickCheck.Monadic
 import Data.Concurrent.OrderedSet
 import Control.Concurrent
-import Control.Concurrent.MVar
 import qualified Control.Exception
 import Control.Monad
 import Test.Framework
@@ -36,7 +35,7 @@ uniq = map head . Data.List.group . Data.List.sort
 myForkIO :: IO () -> IO (MVar ())
 myForkIO io = do
   mvar <- newEmptyMVar
-  forkIO (io `Control.Exception.finally` putMVar mvar ())
+  _ <- forkIO (io `Control.Exception.finally` putMVar mvar ())
   return mvar
 
 
@@ -53,9 +52,9 @@ prop_trivial_one_level_insert_0_1 :: Property
 prop_trivial_one_level_insert_0_1 = monadicIO $ do
   let level = 1
   result <- run $ do
-    oset <- empty level
-    insert 0 oset
-    insert 1 oset
+    oset <- empty level :: IO (OrderedSet Int)
+    _ <- insert 0 oset
+    _ <- insert 1 oset
     toList oset
   assert $ result == [0, 1]
 
@@ -64,9 +63,9 @@ prop_trivial_one_level_insert_1_0 :: Property
 prop_trivial_one_level_insert_1_0 = monadicIO $ do
   let level = 1
   result <- run $ do
-    oset <- empty level
-    insert 1 oset
-    insert 0 oset
+    oset <- empty level :: IO (OrderedSet Int)
+    _ <- insert 1 oset
+    _ <- insert 0 oset
     toList oset
   assert $ result == [0, 1]
 
@@ -74,9 +73,9 @@ prop_trivial_one_level_insert_1_0 = monadicIO $ do
 prop_trivial_two_level_insert_0_1 :: Property
 prop_trivial_two_level_insert_0_1 = monadicIO $ do
   result <- run $ do
-    oset <- empty 2
-    insert 0 oset
-    insert 1 oset
+    oset <- empty 2 :: IO (OrderedSet Int)
+    _ <- insert 0 oset
+    _ <- insert 1 oset
     toList oset
   assert $ result == [0, 1]
 
@@ -84,9 +83,9 @@ prop_trivial_two_level_insert_0_1 = monadicIO $ do
 prop_trivial_two_level_insert_1_0 :: Property
 prop_trivial_two_level_insert_1_0 = monadicIO $ do
   result <- run $ do
-    oset <- empty 2
-    insert 1 oset
-    insert 0 oset
+    oset <- empty 2 :: IO (OrderedSet Int)
+    _ <- insert 1 oset
+    _ <- insert 0 oset
     toList oset
   assert $ result == [0, 1]
 
@@ -94,9 +93,9 @@ prop_trivial_two_level_insert_1_0 = monadicIO $ do
 prop_trivial_one_level_insert_delete_0 :: Property
 prop_trivial_one_level_insert_delete_0 = monadicIO $ do
   result <- run $ do
-    oset <- empty 0
-    insert 0 oset
-    delete 0 oset
+    oset <- empty 0 :: IO (OrderedSet Int)
+    _ <- insert 0 oset
+    _ <- delete 0 oset
     toList oset
   assert $ null result
 
@@ -130,27 +129,27 @@ prop_inserts_very_concurrently = monadicIO $ do
   contents <- pick $ listOf genElem
   numThreads <- genThreads
   level <- pick genLevel
-  elements <- replicateM numThreads $ pick $ listOf genElem
+  elems <- replicateM numThreads $ pick $ listOf genElem
   result <- run $ do
     oset <- fromList level contents
-    mvars <- mapM (\elem -> myForkIO $ mapM_ (flip insert oset) elem) elements
+    mvars <- mapM (\elt -> myForkIO $ mapM_ (flip insert oset) elt) elems
     mapM_ takeMVar mvars
     toList oset
-  let expected = uniq $ contents ++ concat elements
+  let expected = uniq $ contents ++ concat elems
   assert $ result == expected
 
 
 prop_inserts_concurrently :: Property
 prop_inserts_concurrently = monadicIO $ do
-  let contents = []
+  let contents = [] :: [Int]
   let level = 1
-  let elements = [[1], [2]]
+  let elems = [[1], [2]]
   result <- run $ do
     oset <- fromList level contents
-    mvars <- mapM (\elem -> myForkIO $ mapM_ (flip insert oset) elem) elements
+    mvars <- mapM (\elt -> myForkIO $ mapM_ (flip insert oset) elt) elems
     mapM_ takeMVar mvars
     toList oset
-  let expected = uniq $ contents ++ concat elements
+  let expected = uniq $ contents ++ concat elems
   assert $ result == expected
 
 
@@ -184,30 +183,31 @@ prop_deletes_very_concurrently = monadicIO $ do
   contents <- pick $ listOf genElem
   numThreads <- genThreads
   level <- pick genLevel
-  elements <- replicateM numThreads $ pick $ listOf genElem
+  elems <- replicateM numThreads $ pick $ listOf genElem
   result <- run $ do
     oset <- fromList level contents
-    mvars <- mapM (\elem -> myForkIO $ mapM_ (flip delete oset) elem) elements
+    mvars <- mapM (\elt -> myForkIO $ mapM_ (flip delete oset) elt) elems
     mapM_ takeMVar mvars
     toList oset
-  let expected = foldr Data.List.delete (uniq contents) $ concat elements
+  let expected = foldr Data.List.delete (uniq contents) $ concat elems
   assert $ result == expected
 
 
 prop_deletes_concurrently :: Property
 prop_deletes_concurrently = monadicIO $ do
-  let contents = [1,2]
+  let contents = [1,2] :: [Int]
   let level = 1
-  let elements = [[1], [2]]
+  let elems = [[1], [2]]
   result <- run $ do
     oset <- fromList level contents
-    mvars <- mapM (\elem -> myForkIO $ mapM_ (flip delete oset) elem) elements
+    mvars <- mapM (\elt -> myForkIO $ mapM_ (flip delete oset) elt) elems
     mapM_ takeMVar mvars
     toList oset
-  let expected = foldr Data.List.delete (uniq contents) $ concat elements
+  let expected = foldr Data.List.delete (uniq contents) $ concat elems
   assert $ result == expected
 
 
+properties :: [Test]
 properties = [
   testProperty "empty" prop_empty,
 

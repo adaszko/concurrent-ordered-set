@@ -1,18 +1,10 @@
 import Criterion.Main
 import Control.Concurrent
-import Control.Concurrent.MVar
 import Data.Concurrent.OrderedSet
 import Control.Exception
 import Control.Monad
 import System.Random
 import qualified Data.Set as S
-
-
-type ElementType = Int
-
-
-nReps :: Int
-nReps = 100
 
 
 height :: Int
@@ -30,7 +22,7 @@ elemRange = (1, nElems)
 myForkIO :: IO () -> IO (MVar ())
 myForkIO io = do
   mvar <- newEmptyMVar
-  forkIO (io `finally` putMVar mvar ())
+  _ <- forkIO (io `finally` putMVar mvar ())
   return mvar
 
 
