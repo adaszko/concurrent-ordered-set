@@ -55,7 +55,6 @@ benchmark               bench-set
     type:               exitcode-stdio-1.0
     hs-source-dirs:     . bench
     ghc-options:        -threaded -rtsopts -Wall
-    ld-options:         -static -pthread
 
     if flag(developer)
         ghc-options: -Werror
