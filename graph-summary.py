@@ -47,15 +47,16 @@ def scalability(measurements, op, nthreads):
 
     destructive_medians = [measurements['destructive'][i][op][0] for i in threads]
     destructive_speedup = [destructive_medians[0] / destructive_medians[i] for i in range(nthreads)]
-    plt.plot(threads, destructive_speedup, marker='^', linestyle='solid', linewidth=1.0, color='black')
+    destructive = plt.plot(threads, destructive_speedup, marker='^', linestyle='solid', linewidth=1.0, color='black')
 
     pure_medians = [measurements['pure'][i][op][0] for i in threads]
     pure_speedup = [pure_medians[0] / pure_medians[i] for i in range(nthreads)]
-    plt.plot(threads, pure_speedup, marker='s', linestyle='dashed', linewidth=1.0, color='black')
+    pure = plt.plot(threads, pure_speedup, marker='s', linestyle='dashed', linewidth=1.0, color='black')
 
     plt.title(op)
     plt.xlabel(u'$p$')
     plt.ylabel(u'$S_p$')
+    plt.legend((destructive[0], pure[0]), ('destructive', 'pure'))
 
     plt.show()
 
