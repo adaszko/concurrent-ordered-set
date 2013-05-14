@@ -39,7 +39,8 @@ def destructive_vs_pure(measurements, op, nthreads):
     plt.legend((destructive[0], pure[0]), ('destructive', 'pure'))
     plt.xticks(threads)
 
-    plt.show()
+    plt.savefig('{}-comparison.eps'.format(op))
+    plt.close()
 
 
 def scalability(measurements, op, nthreads):
@@ -58,20 +59,23 @@ def scalability(measurements, op, nthreads):
     plt.ylabel(u'$S_p$')
     plt.legend((destructive[0], pure[0]), ('destructive', 'pure'))
 
-    plt.show()
+    plt.savefig('{}-scalability.eps'.format(op))
+    plt.close()
 
 
 def main(summary_file_name):
     nthreads = 4
+    ops = ('insert', 'contains', 'delete')
 
     with open(summary_file_name, 'rb') as data:
         reader = csv.reader(data)
         rows = list(reader)
         header, entries = rows[0], rows[1:]
         measurements = parse_entries(entries)
-        for op in ('insert', 'contains', 'delete'):
+        for op in ops:
             destructive_vs_pure(measurements, op, nthreads)
-        scalability(measurements, 'insert', nthreads)
+        for op in ops:
+            scalability(measurements, op, nthreads)
 
     return 0
 
