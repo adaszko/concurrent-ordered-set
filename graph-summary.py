@@ -27,15 +27,15 @@ def destructive_vs_pure(measurements, op, nthreads):
     destructive_medians = [measurements['destructive'][i][op][0] for i in threads]
     destructive_stddev = [measurements['destructive'][i][op][3] for i in threads]
     left = numpy.arange(1, nthreads + 1)
-    destructive = plt.bar(left=left - bar_width/2 - bar_gap, height=destructive_medians, width=bar_width, yerr=destructive_stddev, align='center', hatch='x', color='none')
+    destructive = plt.bar(left=left - bar_width/2 - bar_gap, height=destructive_medians, width=bar_width, yerr=destructive_stddev, ecolor='k', align='center', hatch='x', color='none')
 
     pure_medians = [measurements['pure'][i][op][0] for i in threads]
     pure_stddev = [measurements['pure'][i][op][3] for i in threads]
-    pure = plt.bar(left=left + bar_width/2 + bar_gap, height=pure_medians, width=bar_width, yerr=pure_stddev, align='center', color='none')
+    pure = plt.bar(left=left + bar_width/2 + bar_gap, height=pure_medians, width=bar_width, yerr=pure_stddev, ecolor='k', align='center', color='none')
 
     plt.title(op)
     plt.xlabel('$p$')
-    plt.ylabel('$t$')
+    plt.ylabel('$t$ (s)')
     plt.legend((destructive[0], pure[0]), ('destructive', 'pure'))
     plt.xticks(threads)
 
