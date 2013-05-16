@@ -38,6 +38,7 @@ library
 test-suite              Main
     type:               exitcode-stdio-1.0
     build-depends:      base,
+                        random,
                         QuickCheck >= 2.0,
                         test-framework,
                         test-framework-quickcheck2,

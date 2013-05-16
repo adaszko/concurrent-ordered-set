@@ -32,25 +32,25 @@ genElems numThreads = replicateM numThreads $ genSubList $ nElems `div` numThrea
     genSubList numElems = replicateM numElems $ randomRIO elemRange
 
 
-destructiveInsert :: [[Int]] -> IO ()
-destructiveInsert elements = nfIO $ do
-  oset <- empty height
+destructiveInsert :: StdGen -> [[Int]] -> IO ()
+destructiveInsert seed elements = nfIO $ do
+  oset <- empty seed height
   mvars <- mapM (myForkIO . mapM_ (flip insert oset)) elements
   mapM_ takeMVar mvars
   toList oset >>= return
 
 
-destructiveContains :: [[Int]] -> IO ()
-destructiveContains elements = nfIO $ do
-  oset <- fromList height $ concat elements
+destructiveContains :: StdGen -> [[Int]] -> IO ()
+destructiveContains seed elements = nfIO $ do
+  oset <- fromList seed height $ concat elements
   mvars <- mapM (myForkIO . mapM_ (flip contains oset)) elements
   mapM_ takeMVar mvars
   toList oset >>= return
 
 
-destructiveDelete :: [[Int]] -> IO ()
-destructiveDelete elements = nfIO $ do
-  oset <- fromList height $ concat elements
+destructiveDelete :: StdGen -> [[Int]] -> IO ()
+destructiveDelete seed elements = nfIO $ do
+  oset <- fromList seed height $ concat elements
   mvars <- mapM (myForkIO . mapM_ (flip delete oset)) elements
   mapM_ takeMVar mvars
   toList oset >>= return
@@ -88,6 +88,8 @@ main = do
   let [e1, e2, e3, e4] = map genElems [1..4]
   mapM_ nfIO [e1, e2, e3, e4]
 
+  let seed = mkStdGen 1792
+
   elems1 <- e1
   elems2 <- e2
   elems3 <- e3
@@ -95,24 +97,24 @@ main = do
 
   defaultMain
     [ bgroup "destructive 1"
-      [ bench "insert" (destructiveInsert elems1)
-      , bench "contains" (destructiveContains elems1)
-      , bench "delete" (destructiveDelete elems1)
+      [ bench "insert" (destructiveInsert seed elems1)
+      , bench "contains" (destructiveContains seed elems1)
+      , bench "delete" (destructiveDelete seed elems1)
       ]
     , bgroup "destructive 2"
-      [ bench "insert" (destructiveInsert elems2)
-      , bench "contains" (destructiveContains elems2)
-      , bench "delete" (destructiveDelete elems2)
+      [ bench "insert" (destructiveInsert seed elems2)
+      , bench "contains" (destructiveContains seed elems2)
+      , bench "delete" (destructiveDelete seed elems2)
       ]
     , bgroup "destructive 3"
-      [ bench "insert" (destructiveInsert elems3)
-      , bench "contains" (destructiveContains elems3)
-      , bench "delete" (destructiveDelete elems3)
+      [ bench "insert" (destructiveInsert seed elems3)
+      , bench "contains" (destructiveContains seed elems3)
+      , bench "delete" (destructiveDelete seed elems3)
       ]
     , bgroup "destructive 4"
-      [ bench "insert" (destructiveInsert elems4)
-      , bench "contains" (destructiveContains elems4)
-      , bench "delete" (destructiveDelete elems4)
+      [ bench "insert" (destructiveInsert seed elems4)
+      , bench "contains" (destructiveContains seed elems4)
+      , bench "delete" (destructiveDelete seed elems4)
       ]
     , bgroup "pure 1"
       [ bench "insert" (pureInsert elems2)

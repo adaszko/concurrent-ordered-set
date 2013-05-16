@@ -17,10 +17,10 @@ module Data.Concurrent.OrderedSet (
 
 
 import Prelude hiding (head, elem)
+import Data.List (unfoldr)
 import Data.IORef
 import qualified Data.Vector.Mutable as V
-import Control.Monad
-import System.Random (randomRIO)
+import qualified System.Random as R
 import Control.Concurrent.MarkableIORef
 
 
@@ -30,7 +30,8 @@ type RefArray a = V.IOVector (IORef (OrderedSet a))
 
 data OrderedSet a
   = Head
-    { maxLevels :: Int
+    { randomGen :: R.StdGen
+    , maxLevels :: Int
     , next     :: MarkableRefArray a
     }
   | Node
@@ -44,31 +45,28 @@ bottomLevel :: Int
 bottomLevel = 0
 
 
-flipCoin :: IO Bool
-flipCoin = randomRIO (False, True)
-
-
-randomLevel :: Int -> IO Int
-randomLevel numLevels = do
-  flips <- replicateM (numLevels - 1) flipCoin
-  let tails = takeWhile id (True : flips)
-  return $ length tails
+randomLevel :: R.StdGen -> Int -> Int
+randomLevel gen numLevels = length tails
+  where
+    randoms = unfoldr (Just . R.randomR (False, True)) gen
+    flips = take (numLevels - 1) randoms
+    tails = takeWhile id (True : flips)
 
 
 -- | The Int parameter specifies maximal height of nodes.
-empty :: Int -> IO (OrderedSet a)
-empty numLevels = do
+empty :: R.StdGen -> Int -> IO (OrderedSet a)
+empty gen numLevels = do
   tailRef <- newIORef Tail
   nextRefs <- V.replicateM numLevels $ newMarkableRef tailRef False
-  return Head { maxLevels = numLevels, next = nextRefs }
+  return Head { randomGen = gen, maxLevels = numLevels, next = nextRefs }
 
 
 
 -- | Calls insert repeatedly.  The worst complexity is exhibited when input
 -- list is sorted in increasing order.
-fromList :: Ord a => Int -> [a] -> IO (OrderedSet a)
-fromList numLevels contents = do
-  list <- empty numLevels
+fromList :: Ord a => R.StdGen -> Int -> [a] -> IO (OrderedSet a)
+fromList gen numLevels contents = do
+  list <- empty gen numLevels
   mapM_ (flip insert list) contents
   return list
 
@@ -86,7 +84,7 @@ toList Head { next = markableRefs } = go markableRefs
       Node { key = val, next = succMRefs } -> do
         rest <- go succMRefs
         return $ val : rest
-      Head _ _ -> undefined
+      Head _ _ _ -> undefined
 
 toList (Node _ _) = undefined
 toList Tail = undefined
@@ -123,19 +121,19 @@ find elem head @ Head { maxLevels = numLevels, next = markableRefs } = do
           V.write currMRefs level currMarkableRef
           V.write currRefs level currRef
           go (level - 1) mrefs currMRefs currRefs
-        Head _ _ -> undefined
+        Head _ _ _ -> undefined
     | otherwise = do
       curr <- V.read currRefs bottomLevel >>= readIORef
       case curr of
         Tail -> return (False, currMRefs, currRefs)
         Node { key = val } -> return (val == elem, currMRefs, currRefs)
-        Head _ _ -> undefined
+        Head _ _ _ -> undefined
 find _ _ = undefined
 
 
 -- | /Lock-free/.
 insert :: Ord a => a -> OrderedSet a -> IO Bool
-insert elem head @ Head { maxLevels = numLevels } = do
+insert elem head @ Head { randomGen = rGen, maxLevels = numLevels } = do
   (found, currMRefs, currRefs) <- find elem head
   if found
     then return False
@@ -153,7 +151,7 @@ insert elem head @ Head { maxLevels = numLevels } = do
     newIORef Node { key = val, next = nextArray }
 
   updateBottomLevel currMRefs currRefs = do
-    height <- randomLevel numLevels
+    let height = randomLevel rGen numLevels
     newNodeRef <- makeNodeRef elem height currRefs
     currMarkableRef <- V.read currMRefs bottomLevel
     succRef <- V.read currRefs bottomLevel
@@ -193,7 +191,7 @@ contains elem Head { maxLevels = numLevels, next = markableRefs } = go (numLevel
               EQ -> return True
               GT -> go (level - 1) mrefs
         Tail -> go (level - 1) mrefs
-        Head _ _ -> undefined
+        Head _ _ _ -> undefined
     | otherwise = return False
 contains _ _ = undefined
 

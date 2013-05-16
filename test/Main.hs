@@ -9,6 +9,7 @@ import qualified Control.Exception
 import Control.Monad
 import Test.Framework
 import Test.Framework.Providers.QuickCheck2
+import System.Random
 
 
 type ElementType = Int
@@ -43,7 +44,8 @@ prop_empty :: Property
 prop_empty = monadicIO $ do
   level <- pick genLevel
   result <- run $ do
-    oset <- empty level
+    gen <- getStdGen
+    oset <- empty gen level
     toList oset
   assert $ null result
 
@@ -52,7 +54,8 @@ prop_trivial_one_level_insert_0_1 :: Property
 prop_trivial_one_level_insert_0_1 = monadicIO $ do
   let level = 1
   result <- run $ do
-    oset <- empty level :: IO (OrderedSet Int)
+    gen <- getStdGen
+    oset <- empty gen level :: IO (OrderedSet Int)
     _ <- insert 0 oset
     _ <- insert 1 oset
     toList oset
@@ -63,7 +66,8 @@ prop_trivial_one_level_insert_1_0 :: Property
 prop_trivial_one_level_insert_1_0 = monadicIO $ do
   let level = 1
   result <- run $ do
-    oset <- empty level :: IO (OrderedSet Int)
+    gen <- getStdGen
+    oset <- empty gen level :: IO (OrderedSet Int)
     _ <- insert 1 oset
     _ <- insert 0 oset
     toList oset
@@ -73,7 +77,8 @@ prop_trivial_one_level_insert_1_0 = monadicIO $ do
 prop_trivial_two_level_insert_0_1 :: Property
 prop_trivial_two_level_insert_0_1 = monadicIO $ do
   result <- run $ do
-    oset <- empty 2 :: IO (OrderedSet Int)
+    gen <- getStdGen
+    oset <- empty gen 2 :: IO (OrderedSet Int)
     _ <- insert 0 oset
     _ <- insert 1 oset
     toList oset
@@ -83,7 +88,8 @@ prop_trivial_two_level_insert_0_1 = monadicIO $ do
 prop_trivial_two_level_insert_1_0 :: Property
 prop_trivial_two_level_insert_1_0 = monadicIO $ do
   result <- run $ do
-    oset <- empty 2 :: IO (OrderedSet Int)
+    gen <- getStdGen
+    oset <- empty gen 2 :: IO (OrderedSet Int)
     _ <- insert 1 oset
     _ <- insert 0 oset
     toList oset
@@ -93,7 +99,8 @@ prop_trivial_two_level_insert_1_0 = monadicIO $ do
 prop_trivial_one_level_insert_delete_0 :: Property
 prop_trivial_one_level_insert_delete_0 = monadicIO $ do
   result <- run $ do
-    oset <- empty 0 :: IO (OrderedSet Int)
+    gen <- getStdGen
+    oset <- empty gen 0 :: IO (OrderedSet Int)
     _ <- insert 0 oset
     _ <- delete 0 oset
     toList oset
@@ -105,7 +112,8 @@ prop_sortsElimsDups = monadicIO $ do
   contents <- pick $ listOf genElem
   level <- pick genLevel
   result <- run $ do
-    oset <- fromList level contents
+    gen <- getStdGen
+    oset <- fromList gen level contents
     toList oset
   assert $ result == uniq contents
 
@@ -116,7 +124,8 @@ prop_inserts = monadicIO $ do
   element <- pick genElem
   level <- pick genLevel
   (result, inserted) <- run $ do
-    oset <- fromList level contents
+    gen <- getStdGen
+    oset <- fromList gen level contents
     inserted <- insert element oset
     result <- toList oset
     return (result, inserted)
@@ -131,7 +140,8 @@ prop_inserts_very_concurrently = monadicIO $ do
   level <- pick genLevel
   elems <- replicateM numThreads $ pick $ listOf genElem
   result <- run $ do
-    oset <- fromList level contents
+    gen <- getStdGen
+    oset <- fromList gen level contents
     mvars <- mapM (\elt -> myForkIO $ mapM_ (flip insert oset) elt) elems
     mapM_ takeMVar mvars
     toList oset
@@ -145,7 +155,8 @@ prop_inserts_concurrently = monadicIO $ do
   let level = 1
   let elems = [[1], [2]]
   result <- run $ do
-    oset <- fromList level contents
+    gen <- getStdGen
+    oset <- fromList gen level contents
     mvars <- mapM (\elt -> myForkIO $ mapM_ (flip insert oset) elt) elems
     mapM_ takeMVar mvars
     toList oset
@@ -159,7 +170,8 @@ prop_contains = monadicIO $ do
   element <- pick genElem
   level <- pick genLevel
   found <- run $ do
-    oset <- fromList level contents
+    gen <- getStdGen
+    oset <- fromList gen level contents
     contains element oset
   assert $ found == elem element contents
 
@@ -170,7 +182,8 @@ prop_deletes = monadicIO $ do
   element <- pick genElem
   level <- pick genLevel
   (result, deleted) <- run $ do
-    oset <- fromList level contents
+    gen <- getStdGen
+    oset <- fromList gen level contents
     deleted <- delete element oset
     result <- toList oset
     return (result, deleted)
@@ -185,7 +198,8 @@ prop_deletes_very_concurrently = monadicIO $ do
   level <- pick genLevel
   elems <- replicateM numThreads $ pick $ listOf genElem
   result <- run $ do
-    oset <- fromList level contents
+    gen <- getStdGen
+    oset <- fromList gen level contents
     mvars <- mapM (\elt -> myForkIO $ mapM_ (flip delete oset) elt) elems
     mapM_ takeMVar mvars
     toList oset
@@ -199,7 +213,8 @@ prop_deletes_concurrently = monadicIO $ do
   let level = 1
   let elems = [[1], [2]]
   result <- run $ do
-    oset <- fromList level contents
+    gen <- getStdGen
+    oset <- fromList gen level contents
     mvars <- mapM (\elt -> myForkIO $ mapM_ (flip delete oset) elt) elems
     mapM_ takeMVar mvars
     toList oset
