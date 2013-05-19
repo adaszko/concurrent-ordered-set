@@ -17,7 +17,6 @@ module Data.Concurrent.OrderedSet (
 
 
 import Prelude hiding (head, elem)
-import Data.List (unfoldr)
 import Data.IORef
 import qualified Data.Vector.Mutable as V
 import qualified System.Random as R
@@ -30,7 +29,7 @@ type RefArray a = V.IOVector (IORef (OrderedSet a))
 
 data OrderedSet a
   = Head
-    { randomGen :: R.StdGen
+    { randomGen :: IORef R.StdGen
     , maxLevels :: Int
     , next     :: MarkableRefArray a
     }
@@ -45,11 +44,18 @@ bottomLevel :: Int
 bottomLevel = 0
 
 
-randomLevel :: R.StdGen -> Int -> Int
-randomLevel gen numLevels = length tails
+iter :: (g -> (a, g)) -> Int -> g -> (g, [a])
+iter _ 0 g = (g, [])
+iter f n g = (g'', x:xs)
   where
-    randoms = unfoldr (Just . R.randomR (False, True)) gen
-    flips = take (numLevels - 1) randoms
+    (x, g') = f g
+    (g'', xs) = iter f (n-1) g'
+
+
+randomLevel :: R.StdGen -> Int -> (R.StdGen, Int)
+randomLevel gen numLevels = (gen', length tails)
+  where
+    (gen', flips) = iter (R.randomR (False, True)) (numLevels - 1) gen
     tails = takeWhile id (True : flips)
 
 
@@ -58,7 +64,8 @@ empty :: R.StdGen -> Int -> IO (OrderedSet a)
 empty gen numLevels = do
   tailRef <- newIORef Tail
   nextRefs <- V.replicateM numLevels $ newMarkableRef tailRef False
-  return Head { randomGen = gen, maxLevels = numLevels, next = nextRefs }
+  genRef <- newIORef gen
+  return Head { randomGen = genRef, maxLevels = numLevels, next = nextRefs }
 
 
 
@@ -133,7 +140,7 @@ find _ _ = undefined
 
 -- | /Lock-free/.
 insert :: Ord a => a -> OrderedSet a -> IO Bool
-insert elem head @ Head { randomGen = rGen, maxLevels = numLevels } = do
+insert elem head @ Head { randomGen = genRef, maxLevels = numLevels } = do
   (found, currMRefs, currRefs) <- find elem head
   if found
     then return False
@@ -151,24 +158,27 @@ insert elem head @ Head { randomGen = rGen, maxLevels = numLevels } = do
     newIORef Node { key = val, next = nextArray }
 
   updateBottomLevel currMRefs currRefs = do
-    let height = randomLevel rGen numLevels
+    rGen <- readIORef genRef
+    let (rGen', height) = randomLevel rGen numLevels
     newNodeRef <- makeNodeRef elem height currRefs
     currMarkableRef <- V.read currMRefs bottomLevel
     succRef <- V.read currRefs bottomLevel
     success <- compareAndSet currMarkableRef succRef newNodeRef False False
     if success
-      then updateUpperLevels (bottomLevel+1) height newNodeRef currMRefs currRefs
+      then updateUpperLevels rGen' (bottomLevel+1) height newNodeRef currMRefs currRefs
       else insert elem head
 
-  updateUpperLevels level height newNodeRef currMRefs currRefs
+  updateUpperLevels rGen' level height newNodeRef currMRefs currRefs
     | level < height = do
         currMarkableRef <- V.read currMRefs level
         succRef <- V.read currRefs level
         success <- compareAndSet currMarkableRef succRef newNodeRef False False
         if success
-          then updateUpperLevels (level + 1) height newNodeRef currMRefs currRefs
+          then updateUpperLevels rGen' (level + 1) height newNodeRef currMRefs currRefs
           else insert elem head
-    | otherwise = return True
+    | otherwise = do
+      _ <- atomicModifyIORef genRef $ const (rGen', undefined)
+      return True
 insert _ _ = undefined
 
 
