@@ -5,6 +5,8 @@ import Control.Exception
 import Control.Monad
 import System.Random
 import qualified Data.Set as S
+import Control.Concurrent.MarkableIORef (casIORef)
+import Data.IORef
 
 
 height :: Int
@@ -56,31 +58,44 @@ destructiveDelete seed elements = nfIO $ do
   toList oset >>= return
 
 
-pureInsert :: [[Int]] -> IO ()
-pureInsert elements = nfIO $ do
-  root <- newMVar $ S.empty
-  mvars <- mapM (myForkIO . thread root) elements
-  mapM_ takeMVar mvars
+pureSetOp :: S.Set Int -> (Int -> S.Set Int -> S.Set Int) -> [[Int]] -> IO [Int]
+pureSetOp initial op elements = do
+  sharedRef <- newIORef initial >>= newIORef
+  threadsFinishMVars <- mapM (myForkIO . threadFn sharedRef) elements
+  mapM_ takeMVar threadsFinishMVars -- make sure all threads completed their jobs
+  readIORef sharedRef >>= readIORef >>= return . S.toList
     where
-      thread root = mapM_ (\e -> modifyMVar_ root (\s -> return $ S.insert e s))
+      threadFn sharedRef = mapM_ (loopCAS sharedRef)
+      loopCAS sharedRef e = do
+        curRootRef <- readIORef sharedRef
+        cur <- readIORef curRootRef
+        newRootRef <- newIORef $ op e cur
+        success <- casIORef sharedRef curRootRef newRootRef
+        unless success $ loopCAS sharedRef e
 
 
-pureContains :: [[Int]] -> IO ()
-pureContains elements = nfIO $ do
-  root <- newMVar $ S.fromList $ concat elements
-  mvars <- mapM (myForkIO . thread root) elements
-  mapM_ takeMVar mvars
+pureInsert :: [[Int]] -> IO [Int]
+pureInsert = pureSetOp S.empty S.insert
+
+
+pureContains :: [[Int]] -> IO [Bool]
+pureContains elements = do
+  sharedRef <- newIORef (S.fromList $ concat elements) >>= newIORef
+  results <- mapM (const $ newMVar []) elements
+  threadsFinishMVars <- mapM (\(es, mv) -> myForkIO $ threadFn sharedRef es mv) $ zip elements results
+  mapM_ takeMVar threadsFinishMVars
+  mapM takeMVar results >>= return . concat
     where
-      thread root = mapM_ (\e -> modifyMVar_ root (\s -> return $ if S.member e s then s else s))
+      threadFn sharedRef es mv = mapM_ (\e -> unwrapContains sharedRef e mv) es
+      unwrapContains sharedRef e mv = do
+        curRootRef <- readIORef sharedRef
+        cur <- readIORef curRootRef
+        r <- takeMVar mv
+        putMVar mv $ S.member e cur : r
 
 
-pureDelete :: [[Int]] -> IO ()
-pureDelete elements = nfIO $ do
-  root <- newMVar $ S.fromList $ concat elements
-  mvars <- mapM (myForkIO . thread root) elements
-  mapM_ takeMVar mvars
-    where
-      thread root = mapM_ (\e -> modifyMVar_ root (\s -> return $ S.delete e s))
+pureDelete :: [[Int]] -> IO [Int]
+pureDelete elements = pureSetOp (S.fromList $ concat elements) S.delete elements
 
 
 main :: IO ()
