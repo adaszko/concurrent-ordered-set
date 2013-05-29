@@ -34,24 +34,31 @@ genElems numThreads = replicateM numThreads $ genSubList $ nElems `div` numThrea
     genSubList numElems = replicateM numElems $ randomRIO elemRange
 
 
-destructiveInsert :: StdGen -> [[Int]] -> IO ()
-destructiveInsert seed elements = nfIO $ do
+destructiveInsert :: StdGen -> [[Int]] -> IO [Int]
+destructiveInsert seed elements = do
   oset <- empty seed height
   mvars <- mapM (myForkIO . mapM_ (flip insert oset)) elements
   mapM_ takeMVar mvars
   toList oset >>= return
 
 
-destructiveContains :: StdGen -> [[Int]] -> IO ()
-destructiveContains seed elements = nfIO $ do
+destructiveContains :: StdGen -> [[Int]] -> IO [Bool]
+destructiveContains seed elements = do
   oset <- fromList seed height $ concat elements
-  mvars <- mapM (myForkIO . mapM_ (flip contains oset)) elements
-  mapM_ takeMVar mvars
-  toList oset >>= return
+  results <- mapM (const $ newMVar []) elements
+  threadsFinishMVars <- mapM (\(es, mv) -> myForkIO $ threadFn oset es mv) $ zip elements results
+  mapM_ takeMVar threadsFinishMVars
+  mapM takeMVar results >>= return . concat
+    where
+      threadFn oset es mv = mapM_ (syncContains oset mv) es
+      syncContains oset mv e = do
+        has <- contains e oset
+        cur <- takeMVar mv
+        putMVar mv $ has : cur
 
 
-destructiveDelete :: StdGen -> [[Int]] -> IO ()
-destructiveDelete seed elements = nfIO $ do
+destructiveDelete :: StdGen -> [[Int]] -> IO [Int]
+destructiveDelete seed elements = do
   oset <- fromList seed height $ concat elements
   mvars <- mapM (myForkIO . mapM_ (flip delete oset)) elements
   mapM_ takeMVar mvars
@@ -112,43 +119,43 @@ main = do
 
   defaultMain
     [ bgroup "destructive 1"
-      [ bench "insert" (destructiveInsert seed elems1)
-      , bench "contains" (destructiveContains seed elems1)
-      , bench "delete" (destructiveDelete seed elems1)
+      [ bench "insert" (nfIO $ destructiveInsert seed elems1)
+      , bench "contains" (nfIO $ destructiveContains seed elems1)
+      , bench "delete" (nfIO $ destructiveDelete seed elems1)
       ]
     , bgroup "destructive 2"
-      [ bench "insert" (destructiveInsert seed elems2)
-      , bench "contains" (destructiveContains seed elems2)
-      , bench "delete" (destructiveDelete seed elems2)
+      [ bench "insert" (nfIO $ destructiveInsert seed elems2)
+      , bench "contains" (nfIO $ destructiveContains seed elems2)
+      , bench "delete" (nfIO $ destructiveDelete seed elems2)
       ]
     , bgroup "destructive 3"
-      [ bench "insert" (destructiveInsert seed elems3)
-      , bench "contains" (destructiveContains seed elems3)
-      , bench "delete" (destructiveDelete seed elems3)
+      [ bench "insert" (nfIO $ destructiveInsert seed elems3)
+      , bench "contains" (nfIO $ destructiveContains seed elems3)
+      , bench "delete" (nfIO $ destructiveDelete seed elems3)
       ]
     , bgroup "destructive 4"
-      [ bench "insert" (destructiveInsert seed elems4)
-      , bench "contains" (destructiveContains seed elems4)
-      , bench "delete" (destructiveDelete seed elems4)
+      [ bench "insert" (nfIO $ destructiveInsert seed elems4)
+      , bench "contains" (nfIO $ destructiveContains seed elems4)
+      , bench "delete" (nfIO $ destructiveDelete seed elems4)
       ]
     , bgroup "pure 1"
-      [ bench "insert" (pureInsert elems2)
-      , bench "contains" (pureContains elems2)
-      , bench "delete" (pureDelete elems2)
+      [ bench "insert" (nfIO $ pureInsert elems2)
+      , bench "contains" (nfIO $ pureContains elems2)
+      , bench "delete" (nfIO $ pureDelete elems2)
       ]
     , bgroup "pure 2"
-      [ bench "insert" (pureInsert elems2)
-      , bench "contains" (pureContains elems2)
-      , bench "delete" (pureDelete elems2)
+      [ bench "insert" (nfIO $ pureInsert elems2)
+      , bench "contains" (nfIO $ pureContains elems2)
+      , bench "delete" (nfIO $ pureDelete elems2)
       ]
     , bgroup "pure 3"
-      [ bench "insert" (pureInsert elems3)
-      , bench "contains" (pureContains elems3)
-      , bench "delete" (pureDelete elems3)
+      [ bench "insert" (nfIO $ pureInsert elems3)
+      , bench "contains" (nfIO $ pureContains elems3)
+      , bench "delete" (nfIO $ pureDelete elems3)
       ]
     , bgroup "pure 4"
-      [ bench "insert" (pureInsert elems4)
-      , bench "contains" (pureContains elems4)
-      , bench "delete" (pureDelete elems4)
+      [ bench "insert" (nfIO $ pureInsert elems4)
+      , bench "contains" (nfIO $ pureContains elems4)
+      , bench "delete" (nfIO $ pureDelete elems4)
       ]
     ]
