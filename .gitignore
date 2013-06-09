@@ -1,5 +1,3 @@
 *.hi
 *.o
-*.csv
 /dist
-/artifacts

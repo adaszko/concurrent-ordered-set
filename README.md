@@ -1,18 +1,28 @@
-What is it?
-===========
+# What is it?
 
 A concurrent, lock-free, ordered set data type based on skip lists (which in
 turn utilise `atomicModifyIORef`).
 
 
-Status
-======
+# Status
 
-Passes all QuickCheck test cases.
+Passes all QuickCheck test cases.  Here are some performance measurements against `Data.Set`:
+
+## Absolute
+
+![insert](https://github.com/adaszko/concurrent-ordered-set/raw/master/artifacts/insert-comparison.svg "insert")
+![contains](https://github.com/adaszko/concurrent-ordered-set/raw/master/artifacts/contains-comparison.svg "contains")
+![delete](https://github.com/adaszko/concurrent-ordered-set/raw/master/artifacts/delete-comparison.svg "delete")
 
 
-Installation
-============
+## Scalability
+
+![insert](https://github.com/adaszko/concurrent-ordered-set/raw/master/artifacts/insert-scalability.svg "insert")
+![contains](https://github.com/adaszko/concurrent-ordered-set/raw/master/artifacts/contains-scalability.svg "contains")
+![delete](https://github.com/adaszko/concurrent-ordered-set/raw/master/artifacts/delete-scalability.svg "delete")
+
+
+# Installation
 
 Assuming you have GHC already installed:
 
@@ -22,8 +32,7 @@ Assuming you have GHC already installed:
     $ cabal install
 
 
-Usage
-=====
+# Usage
 
 ```haskell
 import Data.Concurrent.OrderedSet
@@ -36,14 +45,12 @@ main = do
 ```
 
 
-License
-=======
+# License
 
 BSD3
 
 
-References
-==========
+# References
 
 * [Multicore Programming in Haskell](http://www.infoq.com/presentations/Multicore-Programming-in-Haskell)
 * Herlihy, Shavit: The Art of Multiprocessor Programming

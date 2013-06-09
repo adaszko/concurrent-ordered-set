@@ -18,7 +18,7 @@ def parse_entries(entries):
     return result
 
 
-def destructive_vs_pure(measurements, op, nthreads):
+def destructive_vs_pure(measurements, op, nthreads, output_files_ext):
     bar_width = 0.2
     bar_gap = 0.05 # space between bars for equal x
 
@@ -39,11 +39,11 @@ def destructive_vs_pure(measurements, op, nthreads):
     plt.legend((destructive[0], pure[0]), ('Data.Concurrent.OrderedSet', 'Data.Set'))
     plt.xticks(threads)
 
-    plt.savefig('{}-comparison.eps'.format(op))
+    plt.savefig('{}-comparison.{}'.format(op, output_files_ext))
     plt.close()
 
 
-def scalability(measurements, op, nthreads):
+def scalability(measurements, op, nthreads, output_files_ext):
     threads = range(1, nthreads + 1)
 
     destructive_medians = [measurements['destructive'][i][op][0] for i in threads]
@@ -59,11 +59,11 @@ def scalability(measurements, op, nthreads):
     plt.ylabel(u'$S_p$')
     plt.legend((destructive[0], pure[0]), ('Data.Concurrent.OrderedSet', 'Data.Set'))
 
-    plt.savefig('{}-scalability.eps'.format(op))
+    plt.savefig('{}-scalability.{}'.format(op, output_files_ext))
     plt.close()
 
 
-def main(summary_file_name):
+def main(summary_file_name, output_files_ext):
     nthreads = 4
     ops = ('insert', 'contains', 'delete')
 
@@ -73,9 +73,9 @@ def main(summary_file_name):
         header, entries = rows[0], rows[1:]
         measurements = parse_entries(entries)
         for op in ops:
-            destructive_vs_pure(measurements, op, nthreads)
+            destructive_vs_pure(measurements, op, nthreads, output_files_ext)
         for op in ops:
-            scalability(measurements, op, nthreads)
+            scalability(measurements, op, nthreads, output_files_ext)
 
     return 0
 
@@ -83,9 +83,10 @@ def main(summary_file_name):
 if __name__ == '__main__':
     args = sys.argv[1:]
 
-    if len(args) != 1:
-        print('usage: {} SUMMARY.CSV'.format(sys.argv[0]))
+    if len(args) < 1:
+        print('usage: {} SUMMARY.CSV [MATPLOTLIB-SUPPORTED-OUTPUT-FILES-EXTENSION]'.format(sys.argv[0]))
         sys.exit(1)
     summary_file_name = args[0]
+    output_files_ext = args[1] if len(args) > 1 else 'eps'
 
-    sys.exit(main(summary_file_name))
+    sys.exit(main(summary_file_name, output_files_ext))
