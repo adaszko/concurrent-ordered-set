@@ -36,7 +36,7 @@ def destructive_vs_pure(measurements, op, nthreads):
     plt.title(op)
     plt.xlabel('$p$')
     plt.ylabel('$t$ (s)')
-    plt.legend((destructive[0], pure[0]), ('destructive', 'pure'))
+    plt.legend((destructive[0], pure[0]), ('Data.Concurrent.OrderedSet', 'Data.Set'))
     plt.xticks(threads)
 
     plt.savefig('{}-comparison.eps'.format(op))
@@ -57,7 +57,7 @@ def scalability(measurements, op, nthreads):
     plt.title(op)
     plt.xlabel(u'$p$')
     plt.ylabel(u'$S_p$')
-    plt.legend((destructive[0], pure[0]), ('destructive', 'pure'))
+    plt.legend((destructive[0], pure[0]), ('Data.Concurrent.OrderedSet', 'Data.Set'))
 
     plt.savefig('{}-scalability.eps'.format(op))
     plt.close()
