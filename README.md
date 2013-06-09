@@ -10,16 +10,16 @@ Passes all QuickCheck test cases.  Here are some performance measurements agains
 
 ## Absolute
 
-![insert](https://github.com/adaszko/concurrent-ordered-set/raw/master/artifacts/insert-comparison.svg "insert")
-![contains](https://github.com/adaszko/concurrent-ordered-set/raw/master/artifacts/contains-comparison.svg "contains")
-![delete](https://github.com/adaszko/concurrent-ordered-set/raw/master/artifacts/delete-comparison.svg "delete")
+![insert](http://adaszko.github.io/concurrent-ordered-set/artifacts/insert-comparison.svg "insert")
+![contains](http://adaszko.github.io/concurrent-ordered-set/artifacts/contains-comparison.svg "contains")
+![delete](http://adaszko.github.io/concurrent-ordered-set/artifacts/delete-comparison.svg "delete")
 
 
 ## Scalability
 
-![insert](https://github.com/adaszko/concurrent-ordered-set/raw/master/artifacts/insert-scalability.svg "insert")
-![contains](https://github.com/adaszko/concurrent-ordered-set/raw/master/artifacts/contains-scalability.svg "contains")
-![delete](https://github.com/adaszko/concurrent-ordered-set/raw/master/artifacts/delete-scalability.svg "delete")
+![insert](http://adaszko.github.io/concurrent-ordered-set/artifacts/insert-scalability.svg "insert")
+![contains](http://adaszko.github.io/concurrent-ordered-set/artifacts/contains-scalability.svg "contains")
+![delete](http://adaszko.github.io/concurrent-ordered-set/artifacts/delete-scalability.svg "delete")
 
 
 # Installation
