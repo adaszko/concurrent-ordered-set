@@ -6,7 +6,10 @@ turn utilise `atomicModifyIORef`).
 
 # Status
 
-Passes all QuickCheck test cases.  Here are some performance measurements against `Data.Set`:
+Passes all QuickCheck test cases.  Below are some performance measurements
+against `Data.Set`.  `p` is the number of hardware threads passed to `+RTS -N`;
+`t` is the median time in seconds of executing each operation 100 times. These
+graphs were generated with `graph-summary.py`.
 
 ## Absolute
 
